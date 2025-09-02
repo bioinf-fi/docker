@@ -157,6 +157,41 @@ RUN python3 -m venv /opt/venv \
  && rm -rf /wheels
 ENV PATH="/opt/venv/bin:${PATH}"
 
+# -------- Aggressive Pruning (size trim) --------
+RUN set -eux; \
+rm -rf /var/lib/apt/lists/*; \
+\
+# Locales: keep en_US.utf8 only
+find /usr/share/locale -mindepth 1 -maxdepth 1 \
+    ! -name 'en' ! -name 'en_US' ! -name 'locale.alias' -exec rm -rf {} + || true; \
+find /usr/lib/locale -mindepth 1 -maxdepth 1 \
+    ! -name 'en_US.utf8' -exec rm -rf {} + || true; \
+\
+# Docs/man/info: be tolerant (chmod +w, ignore errors)
+for p in /usr/share/man /usr/share/info /usr/share/doc; do \
+    if [ -d "$p" ]; then \
+    chmod -R u+w "$p" || true; \
+    find "$p" -mindepth 1 -xdev -print0 | xargs -0 rm -rf -- || true; \
+    fi; \
+done; \
+\
+# Strip ELF binaries and shared libs (safe if already stripped)
+if command -v strip >/dev/null 2>&1; then \
+    find /usr/local -type f -executable -exec sh -c 'file -b "$1" | grep -qE "ELF.*(executable|shared object)" && chmod u+w "$1" && strip --strip-unneeded "$1" || true' _ {} \; || true; \
+    find /opt/venv -type f -name "*.so*" -exec sh -c 'file -b "$1" | grep -q ELF && chmod u+w "$1" && strip --strip-unneeded "$1" || true' _ {} \; || true; \
+fi; \
+\
+# Python cache/tests/docs inside venv
+find /opt/venv -type d -name "__pycache__" -prune -exec rm -rf {} + || true; \
+find /opt/venv/lib -type d \( -name "tests" -o -name "test" -o -name "testing" -o -name "examples" -o -name "docs" \) -prune -exec rm -rf {} + || true; \
+rm -rf /opt/venv/pip-selfcheck.json || true; \
+\
+# R help/HTML/caches (keeps packages functional)
+find /usr/lib/R/site-library -maxdepth 2 -type d \( -name "help" -o -name "html" -o -name "doc" -o -name "docs" -o -name "examples" -o -name "unitTests" \) \
+    -exec rm -rf {} + || true; \
+rm -rf /usr/lib/R/doc /root/.cache /home/*/.cache /tmp/* /var/tmp/* || true
+# -------- End pruning --------
+
 # Non-root user for podman/docker
 ARG USER=worker
 ARG UID=2000
@@ -168,44 +203,7 @@ USER ${USER}
 WORKDIR /data
 ENV HOME=/home/${USER}
 
-# -------- Aggressive Pruning (size trim) --------
-# 1) Remove APT caches (already done above, but ensure no leftovers)
-RUN rm -rf /var/lib/apt/lists/*
 
-# 2) Drop docs, man pages, and non-English locales (keep en*)
-RUN set -eux; \
-  rm -rf /usr/share/man/* /usr/share/info/* /usr/share/doc/*; \
-  find /usr/share/locale -mindepth 1 -maxdepth 1 \
-      ! -name 'en' ! -name 'en_US' ! -name 'locale.alias' -exec rm -rf {} + || true; \
-  find /usr/lib/locale -mindepth 1 -maxdepth 1 \
-      ! -name 'en_US.utf8' -exec rm -rf {} + || true
-
-# 3) Strip symbols from user-installed native binaries and shared libs
-#    (harmless if some objects are already stripped)
-RUN set -eux; \
-  if command -v strip >/dev/null 2>&1; then \
-    find /usr/local -type f -executable -exec sh -c 'file -b "$1" | grep -qE "ELF.*(executable|shared object)" && strip --strip-unneeded "$1" || true' _ {} \; || true; \
-    find /opt/venv -type f -name "*.so*" -exec sh -c 'file -b "$1" | grep -q "ELF" && strip --strip-unneeded "$1" || true' _ {} \; || true; \
-  fi
-
-# 4) Remove Python bytecode, tests, examples, and caches from the venv
-RUN set -eux; \
-  find /opt/venv -type d -name "__pycache__" -prune -exec rm -rf {} +; \
-  find /opt/venv/lib -type d \( -name "tests" -o -name "test" -o -name "testing" -o -name "examples" -o -name "docs" \) \
-       -prune -exec rm -rf {} +; \
-  # remove pip metadata caches inside the venv
-  rm -rf /opt/venv/pip-selfcheck.json || true
-
-# 5) Prune R help, HTML, and caches (keeps packages working)
-RUN set -eux; \
-  rm -rf /usr/lib/R/doc /usr/share/doc/*R* || true; \
-  find /usr/lib/R/site-library -maxdepth 2 -type d \( -name "help" -o -name "html" -o -name "doc" -o -name "docs" -o -name "examples" -o -name "unitTests" \) \
-       -exec rm -rf {} + || true; \
-  rm -rf /root/.cache /home/*/.cache /tmp/* /var/tmp/*
-
-# 6) Verify key tools still run (optional; can be removed to save a few KB)
-RUN bash -lc 'samtools --version | head -n1 && minimap2 --version && whatshap --help >/dev/null 2>&1 || true'
-# -------- End pruning --------
 
 # Smoke test / default command
 CMD bash -lc '\
