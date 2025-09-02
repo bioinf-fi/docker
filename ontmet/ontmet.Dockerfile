@@ -262,7 +262,7 @@ PY
 
 # Greeting in interactive shells (disable with NO_GREETING=1)
 if [ -n "$BASH_VERSION" ] && [[ $- == *i* ]] && [ -z "$NO_GREETING" ]; then
-  echo "Welcome to the Genomics Toolkit container. Type 'tools' to see versions."
+  echo "Welcome to the ONT MET container. Type 'tools' to see versions."
 fi
 SH
 

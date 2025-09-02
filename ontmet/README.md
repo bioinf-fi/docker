@@ -1,4 +1,4 @@
-# Genomics Toolkit Container
+# ONT MET Container
 
 A container image bundling common genomics tools for alignment, variant calling, methylation analysis, phasing, and visualization.
 
