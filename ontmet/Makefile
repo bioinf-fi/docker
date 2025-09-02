@@ -23,6 +23,7 @@ build:
 
 # 2. Squash to single layer (export+import)
 squash:
+	echo "Squashing image to $(OUTPUT)"
 	@cid=$$($(ENGINE) create $(IMAGE_NAME):$(TAG)); \
 	$(ENGINE) export $$cid | gzip > $(OUTPUT); \
 	$(ENGINE) rm $$cid; \
