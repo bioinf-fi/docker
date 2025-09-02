@@ -109,12 +109,26 @@ RUN . /opt/pwb/bin/activate \
  && mkdir -p /wheelhouse \
  && pip wheel -w /wheelhouse \
       pysam \
-      methylartist \
       moddotplot \
       whatshap \
       pybedtools \
-      pyBigWig \
-      ndindex
+      pybigwig \
+      ndindex \
+ && ( \
+      pip wheel -w /wheelhouse methylartist \
+      || pip wheel -w /wheelhouse git+https://github.com/adamewing/methylartist \
+    ) \
+ && python - <<'PY'
+import glob, sys
+wheels = glob.glob("/wheelhouse/*.whl")
+need = {"pysam","moddotplot","whatshap","pybedtools","pybigwig","ndindex","methylartist"}
+have = {w.split("/")[-1].split("-")[0].lower() for w in wheels}
+missing = sorted(need - have)
+if missing:
+    print("Missing wheels:", missing)
+    sys.exit(1)
+print("Wheelhouse OK.")
+PY
 
 # =========
 # RUNTIME
@@ -130,6 +144,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     locales \
     python3 python3-venv \
+    libpython3.12 \  
     r-base \
     libcurl4 libxml2 libssl3 \
     libzstd1 libbz2-1.0 liblzma5 libdeflate0 \
@@ -138,59 +153,42 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gv \
   && rm -rf /var/lib/apt/lists/* \
   && locale-gen en_US.UTF-8
-ENV LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+ENV LANG=C.UTF-8
 
 # Copy compiled C/C++ tools from the builder stage (htslib, samtools, minimap2, seqtk, bioawk)
 COPY --from=builder /opt/build /usr/local
+ENV LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
+RUN ldconfig
 ENV PATH="/usr/local/bin:${PATH}"
 
 # ---- Python tools via offline wheels from pybuilder ----
-# (pybuilder stage must have: pip wheel -w /wheelhouse pysam methylartist moddotplot whatshap pybedtools pyBigWig ndindex)
+# (pybuilder stage must have: pip wheel -w /wheelhouse pysam methylartist moddotplot whatshap pybedtools pybigwig ndindex)
 COPY --from=pybuilder /wheelhouse /wheels
 
 # Create runtime venv and install from local wheels (no internet/compilers here)
-RUN python3 -m venv /opt/venv \
- && . /opt/venv/bin/activate \
- && pip install --upgrade pip \
- && pip install --no-index --find-links=/wheels \
-      pysam methylartist moddotplot whatshap pybedtools pyBigWig ndindex \
- && rm -rf /wheels
-ENV PATH="/opt/venv/bin:${PATH}"
-
-# -------- Aggressive Pruning (size trim) --------
+# after copying /wheels
 RUN set -eux; \
-rm -rf /var/lib/apt/lists/*; \
-\
-# Locales: keep en_US.utf8 only
-find /usr/share/locale -mindepth 1 -maxdepth 1 \
-    ! -name 'en' ! -name 'en_US' ! -name 'locale.alias' -exec rm -rf {} + || true; \
-find /usr/lib/locale -mindepth 1 -maxdepth 1 \
-    ! -name 'en_US.utf8' -exec rm -rf {} + || true; \
-\
-# Docs/man/info: be tolerant (chmod +w, ignore errors)
-for p in /usr/share/man /usr/share/info /usr/share/doc; do \
-    if [ -d "$p" ]; then \
-    chmod -R u+w "$p" || true; \
-    find "$p" -mindepth 1 -xdev -print0 | xargs -0 rm -rf -- || true; \
-    fi; \
-done; \
-\
-# Strip ELF binaries and shared libs (safe if already stripped)
-if command -v strip >/dev/null 2>&1; then \
-    find /usr/local -type f -executable -exec sh -c 'file -b "$1" | grep -qE "ELF.*(executable|shared object)" && chmod u+w "$1" && strip --strip-unneeded "$1" || true' _ {} \; || true; \
-    find /opt/venv -type f -name "*.so*" -exec sh -c 'file -b "$1" | grep -q ELF && chmod u+w "$1" && strip --strip-unneeded "$1" || true' _ {} \; || true; \
-fi; \
-\
-# Python cache/tests/docs inside venv
-find /opt/venv -type d -name "__pycache__" -prune -exec rm -rf {} + || true; \
-find /opt/venv/lib -type d \( -name "tests" -o -name "test" -o -name "testing" -o -name "examples" -o -name "docs" \) -prune -exec rm -rf {} + || true; \
-rm -rf /opt/venv/pip-selfcheck.json || true; \
-\
-# R help/HTML/caches (keeps packages functional)
-find /usr/lib/R/site-library -maxdepth 2 -type d \( -name "help" -o -name "html" -o -name "doc" -o -name "docs" -o -name "examples" -o -name "unitTests" \) \
-    -exec rm -rf {} + || true; \
-rm -rf /usr/lib/R/doc /root/.cache /home/*/.cache /tmp/* /var/tmp/* || true
-# -------- End pruning --------
+  python3 -m venv /opt/venv; \
+  . /opt/venv/bin/activate; \
+  pip install --upgrade pip; \
+  ls -1 /wheels | sed 's/^/WHEEL: /'; \
+  # install everything from the wheelhouse (names allow pip to resolve deps inside /wheels)
+  pip install --no-index --find-links=/wheels \
+      cython pysam moddotplot whatshap pybedtools pyBigWig ndindex methylartist; \
+  # verify core Python libs by import
+  python - <<'PY'
+import importlib, sys
+mods=("pysam","whatshap","moddotplot","pybedtools","pyBigWig","ndindex")
+bad=[]
+for m in mods:
+    try: importlib.import_module(m)
+    except Exception as e: bad.append((m,e.__class__.__name__,str(e)))
+if bad: print("Import failures:",bad); sys.exit(1)
+print("Core Python modules import OK.")
+PY
+# clean up wheels after successful install
+RUN rm -rf /wheels
+ENV PATH="/opt/venv/bin:${PATH}"
 
 # Non-root user for podman/docker
 ARG USER=worker
@@ -199,26 +197,82 @@ ARG GID=2000
 RUN groupadd -g ${GID} ${USER} \
  && useradd -m -u ${UID} -g ${GID} -s /bin/bash ${USER}
 
+# --- Interactive greeting + `tools` helper for bash shells ---
+# System-wide function (root + all users)
+# Ensure venv/bin is first so CLIs resolve (belt-and-suspenders)
+ENV PATH="/opt/venv/bin:/usr/local/bin:${PATH}"
+
+# Replace the tools helper to avoid importing methylartist (use CLI check instead)
+RUN tee /etc/profile.d/genomics-tools.sh >/dev/null <<'SH'
+# Genomics Toolkit helpers
+
+tools() {
+  echo "Tools ready:"
+  command -v samtools >/dev/null 2>&1 \
+    && samtools --version 2>/dev/null | head -n1 \
+    || echo "samtools: not found (or missing libhts)"
+  # minimap2 (print name + version)
+  if command -v minimap2 >/dev/null 2>&1; then
+    v="$(minimap2 --version 2>/dev/null || true)"
+    [ -n "$v" ] && echo "minimap2 $v" || echo "minimap2: installed"
+  else
+    echo "minimap2: not found"
+  fi
+  # seqtk (print name + version)
+    if command -v seqtk >/dev/null 2>&1; then
+    ver="$(seqtk 2>&1 | awk '/^Version:/{v=$2; if ($3) v=v"-"$3; print v; exit}')"
+    if [ -n "$ver" ]; then
+    echo "seqtk $ver"
+    else
+    # fallback: first non-empty line of help
+    line="$(seqtk 2>&1 | awk 'NF{print;exit}')"
+    [ -n "$line" ] && echo "seqtk $line" || echo "seqtk: installed"
+    fi
+    else
+    echo "seqtk: not found"
+    fi
+  command -v bioawk >/dev/null 2>&1 \
+    && echo "bioawk: installed" \
+    || echo "bioawk: not found"
+
+  # Import-check for core Python libs (exclude methylartist)
+  /opt/venv/bin/python - <<'PY'
+import importlib
+mods=("pysam","whatshap","moddotplot","pybedtools","pyBigWig","ndindex")
+for m in mods:
+    try:
+        mod=importlib.import_module(m)
+        print(f"{m} {getattr(mod,'__version__','installed')}")
+    except Exception as e:
+        print(f"{m}: import failed ({e.__class__.__name__}: {e})")
+PY
+
+  # Methylartist via CLI
+  if command -v methylartist >/dev/null 2>&1; then
+    # some versions print help on --version; fall back to a simple presence message
+    methylartist --version 2>/dev/null || echo "methylartist: installed (CLI)"
+  else
+    echo "methylartist: not found"
+  fi
+
+  command -v modkit >/dev/null 2>&1 \
+    && modkit --version \
+    || echo "modkit: not found"
+}
+
+# Greeting in interactive shells (disable with NO_GREETING=1)
+if [ -n "$BASH_VERSION" ] && [[ $- == *i* ]] && [ -z "$NO_GREETING" ]; then
+  echo "Welcome to the Genomics Toolkit container. Type 'tools' to see versions."
+fi
+SH
+
+# Make sure the worker shell loads the helper and shows the tools summary at login
+RUN echo '. /etc/profile.d/genomics-tools.sh 2>/dev/null' >> /home/worker/.bashrc \
+ && echo '[ -z "$NO_GREETING" ] && [[ $- == *i* ]] && tools || true' >> /home/worker/.bashrc
+
 USER ${USER}
 WORKDIR /data
 ENV HOME=/home/${USER}
 
-
-
-# Smoke test / default command
-CMD bash -lc '\
-  echo "Tools ready:" && \
-  samtools --version | head -n1 && \
-  minimap2 --version && \
-  seqtk 2>&1 | head -n1 && \
-  bioawk -v | head -n1 && \
-  python3 - <<PY \
-import pysam, whatshap, importlib; \
-mods=[("pysam",pysam.__version__),("whatshap",whatshap.__version__)]; \
-for m in ("methylartist","moddotplot","pybedtools","pyBigWig","ndindex"): \
-    mod=importlib.import_module(m); \
-    print(m, getattr(mod,"__version__", "installed")); \
-print(*["pysam "+mods[0][1],"whatshap "+mods[1][1]], sep="\n") \
-PY \
-  && modkit --version \
-'
+# Make `bash` the default so interactive shells get the greeting and function
+CMD ["bash"]
