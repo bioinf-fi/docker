@@ -40,7 +40,7 @@ RUN curl -fsSL -o samtools-${SAMTOOLS_VERSION}.tar.bz2 https://github.com/samtoo
 # --- minimap2 ---
 ARG MINIMAP2_VERSION=2.28
 RUN curl -fsSL -o minimap2-${MINIMAP2_VERSION}.tar.bz2 https://github.com/lh3/minimap2/releases/download/v${MINIMAP2_VERSION}/minimap2-${MINIMAP2_VERSION}.tar.bz2 \
-    && tar -xjf minimap2-${MINIMAP2_VERSION}.tar.bz2 \
+    && tar --no-same-owner -xjf minimap2-${MINIMAP2_VERSION}.tar.bz2 \
     && cd minimap2-${MINIMAP2_VERSION} \
     && arch="$(uname -m)"; \
         if [ "$arch" = "aarch64" ] || [ "$arch" = "arm64" ]; then \
