@@ -84,6 +84,14 @@ RUN git clone --depth 1 --branch ${MODKIT_TAG} https://github.com/nanoporetech/m
  && cargo install --path modkit --root /opt/build \
  && /opt/build/bin/modkit --version
 
+# --- pomfret installation deferred ---
+# Will be installed in runtime stage using a different approach
+# Issues with current build: multiple definition errors, hardcoded paths in Makefile
+
+# --- modbamtools ---
+# Install via pip since git clone is having network issues in build environment
+# modbamtools is available as a Python package, so we'll handle it in the pybuilder stage
+
 # =========
 # PYTHON WHEEL BUILDER
 # =========
@@ -92,15 +100,18 @@ FROM ubuntu:24.04 AS pybuilder
 
 ENV DEBIAN_FRONTEND=noninteractive PIP_NO_CACHE_DIR=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip python3-venv python3-dev \
+    software-properties-common \
+  && add-apt-repository ppa:deadsnakes/ppa \
+  && apt-get update && apt-get install -y --no-install-recommends \
+    python3.9 python3.9-venv python3.9-dev python3-pip \
     build-essential git \
     cython3 \
     libcurl4-openssl-dev libxml2-dev libssl-dev \
     zlib1g-dev libbz2-dev liblzma-dev libffi-dev \
   && rm -rf /var/lib/apt/lists/*
 
-# Make a temp venv just for building wheels
-RUN python3 -m venv /opt/pwb && . /opt/pwb/bin/activate \
+# Make a temp venv just for building wheels using Python 3.9 (required for modbamtools)
+RUN python3.9 -m venv /opt/pwb && . /opt/pwb/bin/activate \
  && pip install --upgrade pip setuptools wheel
 
 # Build wheels for all requested packages + their deps
@@ -115,9 +126,14 @@ RUN . /opt/pwb/bin/activate \
       pybedtools \
       pybigwig \
       ndindex \
+      NanoPlot \
  && ( \
       pip wheel -w /wheelhouse methylartist \
       || pip wheel -w /wheelhouse git+https://github.com/adamewing/methylartist \
+    ) \
+ && ( \
+      pip wheel -w /wheelhouse modbamtools \
+      || echo "modbamtools not available via pip, will need manual installation" \
     ) \
  && python3 /tmp/check_wheels.py
 
@@ -132,16 +148,21 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # Core runtime only (no compilers, no *-dev), incl. ncurses for `samtools tview`
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+  && add-apt-repository ppa:deadsnakes/ppa \
+  && apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     locales \
-    python3 python3-venv \
-    libpython3.12 \  
+    python3.9 python3.9-venv libpython3.9 \
     r-base \
     libcurl4 libxml2 libssl3 \
     libzstd1 libbz2-1.0 liblzma5 libdeflate0 \
     libncursesw6 \
     fonts-dejavu-core \
     gv \
+    default-jre-headless \
+    wget \
+    unzip \
   && rm -rf /var/lib/apt/lists/* \
   && locale-gen en_US.UTF-8
 ENV LANG=C.UTF-8
@@ -152,21 +173,52 @@ ENV LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
 RUN ldconfig
 ENV PATH="/usr/local/bin:${PATH}"
 
+# --- Install IGV ---
+ARG IGV_VERSION=2.18.2
+RUN wget -O /tmp/IGV_Linux_${IGV_VERSION}_WithJava.zip \
+    "https://data.broadinstitute.org/igv/projects/downloads/2.18/IGV_Linux_${IGV_VERSION}_WithJava.zip" \
+    && unzip /tmp/IGV_Linux_${IGV_VERSION}_WithJava.zip -d /opt/ \
+    && ln -s /opt/IGV_Linux_${IGV_VERSION}/igv.sh /usr/local/bin/igv \
+    && rm /tmp/IGV_Linux_${IGV_VERSION}_WithJava.zip
+
+# --- Install pomfret (using symlinks to satisfy hardcoded paths) ---
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /usr/bin/htslib \
+    && ln -sf /usr/local/include/htslib /usr/bin/htslib/ \
+    && ln -sf /usr/local/lib/libhts.* /usr/bin/htslib/ \
+    && curl -fsSL -o /tmp/pomfret.tar.gz "https://github.com/nanoporetech/pomfret/archive/refs/heads/main.tar.gz" \
+    && cd /tmp && tar -xzf pomfret.tar.gz \
+    && cd pomfret-main \
+    && make CFLAGS="-g -O2 -Wall -Wno-error -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-label -fcommon" \
+    && install -m 0755 pomfret /usr/local/bin/pomfret \
+    && cd / && rm -rf /tmp/pomfret* \
+    && rm -rf /usr/bin/htslib \
+    && apt-get remove -y build-essential curl zlib1g-dev \
+    && apt-get autoremove -y
+
+# Note: modbamtools attempted via Python wheels
+
 # ---- Python tools via offline wheels from pybuilder ----
-# (pybuilder stage must have: pip wheel -w /wheelhouse pysam methylartist moddotplot whatshap pybedtools pybigwig ndindex)
+# (pybuilder stage must have: pip wheel -w /wheelhouse pysam methylartist moddotplot whatshap pybedtools pybigwig ndindex NanoPlot)
 COPY --from=pybuilder /wheelhouse /wheels
 
 # Create runtime venv and install from local wheels (no internet/compilers here)
 # after copying /wheels
 COPY verify.py /tmp/verify.py
 RUN set -eux; \
-  python3 -m venv /opt/venv; \
+  python3.9 -m venv /opt/venv; \
   . /opt/venv/bin/activate; \
   pip install --upgrade pip; \
   ls -1 /wheels | sed 's/^/WHEEL: /'; \
   # install everything from the wheelhouse (names allow pip to resolve deps inside /wheels)
   pip install --no-index --find-links=/wheels \
-      cython pysam moddotplot whatshap pybedtools pyBigWig ndindex methylartist; \
+      cython pysam moddotplot whatshap pybedtools pyBigWig ndindex methylartist NanoPlot; \
+  # Try to install modbamtools if wheel exists, otherwise install directly from PyPI
+  pip install --no-index --find-links=/wheels modbamtools || pip install modbamtools; \
   # verify core Python libs by import
   python /tmp/verify.py
 # clean up wheels after successful install
