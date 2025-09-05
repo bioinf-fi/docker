@@ -40,7 +40,7 @@ RUN curl -fsSL -o samtools-${SAMTOOLS_VERSION}.tar.bz2 https://github.com/samtoo
 # --- minimap2 ---
 ARG MINIMAP2_VERSION=2.28
 RUN curl -fsSL -o minimap2-${MINIMAP2_VERSION}.tar.bz2 https://github.com/lh3/minimap2/releases/download/v${MINIMAP2_VERSION}/minimap2-${MINIMAP2_VERSION}.tar.bz2 \
-    && tar -xjf minimap2-${MINIMAP2_VERSION}.tar.bz2 \
+    && tar --no-same-owner -xjf minimap2-${MINIMAP2_VERSION}.tar.bz2 \
     && cd minimap2-${MINIMAP2_VERSION} \
     && arch="$(uname -m)"; \
         if [ "$arch" = "aarch64" ] || [ "$arch" = "arm64" ]; then \
@@ -105,6 +105,7 @@ RUN python3 -m venv /opt/pwb && . /opt/pwb/bin/activate \
 
 # Build wheels for all requested packages + their deps
 # (pip wheel downloads sdists/wheels for deps and builds anything missing)
+COPY check_wheels.py /tmp/check_wheels.py
 RUN . /opt/pwb/bin/activate \
  && mkdir -p /wheelhouse \
  && pip wheel -w /wheelhouse \
@@ -118,17 +119,7 @@ RUN . /opt/pwb/bin/activate \
       pip wheel -w /wheelhouse methylartist \
       || pip wheel -w /wheelhouse git+https://github.com/adamewing/methylartist \
     ) \
- && python - <<'PY'
-import glob, sys
-wheels = glob.glob("/wheelhouse/*.whl")
-need = {"pysam","moddotplot","whatshap","pybedtools","pybigwig","ndindex","methylartist"}
-have = {w.split("/")[-1].split("-")[0].lower() for w in wheels}
-missing = sorted(need - have)
-if missing:
-    print("Missing wheels:", missing)
-    sys.exit(1)
-print("Wheelhouse OK.")
-PY
+ && python3 /tmp/check_wheels.py
 
 # =========
 # RUNTIME
@@ -167,6 +158,7 @@ COPY --from=pybuilder /wheelhouse /wheels
 
 # Create runtime venv and install from local wheels (no internet/compilers here)
 # after copying /wheels
+COPY verify.py /tmp/verify.py
 RUN set -eux; \
   python3 -m venv /opt/venv; \
   . /opt/venv/bin/activate; \
@@ -176,16 +168,7 @@ RUN set -eux; \
   pip install --no-index --find-links=/wheels \
       cython pysam moddotplot whatshap pybedtools pyBigWig ndindex methylartist; \
   # verify core Python libs by import
-  python - <<'PY'
-import importlib, sys
-mods=("pysam","whatshap","moddotplot","pybedtools","pyBigWig","ndindex")
-bad=[]
-for m in mods:
-    try: importlib.import_module(m)
-    except Exception as e: bad.append((m,e.__class__.__name__,str(e)))
-if bad: print("Import failures:",bad); sys.exit(1)
-print("Core Python modules import OK.")
-PY
+  python /tmp/verify.py
 # clean up wheels after successful install
 RUN rm -rf /wheels
 ENV PATH="/opt/venv/bin:${PATH}"
@@ -203,68 +186,7 @@ RUN groupadd -g ${GID} ${USER} \
 ENV PATH="/opt/venv/bin:/usr/local/bin:${PATH}"
 
 # Replace the tools helper to avoid importing methylartist (use CLI check instead)
-RUN tee /etc/profile.d/genomics-tools.sh >/dev/null <<'SH'
-# Genomics Toolkit helpers
-
-tools() {
-  echo "Tools ready:"
-  command -v samtools >/dev/null 2>&1 \
-    && samtools --version 2>/dev/null | head -n1 \
-    || echo "samtools: not found (or missing libhts)"
-  # minimap2 (print name + version)
-  if command -v minimap2 >/dev/null 2>&1; then
-    v="$(minimap2 --version 2>/dev/null || true)"
-    [ -n "$v" ] && echo "minimap2 $v" || echo "minimap2: installed"
-  else
-    echo "minimap2: not found"
-  fi
-  # seqtk (print name + version)
-    if command -v seqtk >/dev/null 2>&1; then
-    ver="$(seqtk 2>&1 | awk '/^Version:/{v=$2; if ($3) v=v"-"$3; print v; exit}')"
-    if [ -n "$ver" ]; then
-    echo "seqtk $ver"
-    else
-    # fallback: first non-empty line of help
-    line="$(seqtk 2>&1 | awk 'NF{print;exit}')"
-    [ -n "$line" ] && echo "seqtk $line" || echo "seqtk: installed"
-    fi
-    else
-    echo "seqtk: not found"
-    fi
-  command -v bioawk >/dev/null 2>&1 \
-    && echo "bioawk: installed" \
-    || echo "bioawk: not found"
-
-  # Import-check for core Python libs (exclude methylartist)
-  /opt/venv/bin/python - <<'PY'
-import importlib
-mods=("pysam","whatshap","moddotplot","pybedtools","pyBigWig","ndindex")
-for m in mods:
-    try:
-        mod=importlib.import_module(m)
-        print(f"{m} {getattr(mod,'__version__','installed')}")
-    except Exception as e:
-        print(f"{m}: import failed ({e.__class__.__name__}: {e})")
-PY
-
-  # Methylartist via CLI
-  if command -v methylartist >/dev/null 2>&1; then
-    # some versions print help on --version; fall back to a simple presence message
-    methylartist --version 2>/dev/null || echo "methylartist: installed (CLI)"
-  else
-    echo "methylartist: not found"
-  fi
-
-  command -v modkit >/dev/null 2>&1 \
-    && modkit --version \
-    || echo "modkit: not found"
-}
-
-# Greeting in interactive shells (disable with NO_GREETING=1)
-if [ -n "$BASH_VERSION" ] && [[ $- == *i* ]] && [ -z "$NO_GREETING" ]; then
-  echo "Welcome to the ONT MET container. Type 'tools' to see versions."
-fi
-SH
+COPY genomics-tools.sh /etc/profile.d/genomics-tools.sh
 
 # Make sure the worker shell loads the helper and shows the tools summary at login
 RUN echo '. /etc/profile.d/genomics-tools.sh 2>/dev/null' >> /home/worker/.bashrc \
