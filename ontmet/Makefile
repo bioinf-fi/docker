@@ -10,7 +10,7 @@ ENGINE     ?= docker
 all: build
 
 build:
-	$(ENGINE) build -t $(IMAGE_NAME):$(TAG) -f ontmet.Dockerfile .
+	$(ENGINE) build --load -t $(IMAGE_NAME):$(TAG) -f ontmet.Dockerfile .
 
 squash:
 	echo "Squashing $(ENGINE) image to $(OUTPUT)"

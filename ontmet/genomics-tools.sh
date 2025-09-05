@@ -48,3 +48,58 @@ PY
   else
     echo "methylartist: not found"
   fi
+
+  # Additional tools with version info
+  if command -v modkit >/dev/null 2>&1; then
+    modkit --version | head -1
+  else
+    echo "modkit: not found"
+  fi
+
+  if command -v igv >/dev/null 2>&1; then
+    # IGV version is in the JAR manifest - extract from directory name or use generic
+    igv_dir="$(dirname "$(readlink -f "$(command -v igv)")")"
+    igv_ver="$(basename "$igv_dir" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "2.18.2")"
+    echo "IGV ${igv_ver}"
+  else
+    echo "IGV: not found"
+  fi
+
+  if command -v pomfret >/dev/null 2>&1; then
+    # pomfret doesn't have --version, but we can get basic info
+    pomfret --help 2>&1 | head -1 | sed 's/^/pomfret: /' || echo "pomfret: installed"
+  else
+    echo "pomfret: not found"
+  fi
+
+  if command -v NanoPlot >/dev/null 2>&1; then
+    NanoPlot --version 2>/dev/null | head -1 || echo "NanoPlot: installed"
+  else
+    echo "NanoPlot: not found"
+  fi
+
+  # Check for modbamtools (Python package with version)
+  /opt/venv/bin/python -c "
+try:
+    import modbamtools
+    # Try multiple ways to get version
+    version = getattr(modbamtools, '__version__', None)
+    if not version:
+        # Try from package metadata
+        try:
+            import importlib.metadata
+            version = importlib.metadata.version('modbamtools')
+        except:
+            # Try from pkg_resources (older method)
+            try:
+                import pkg_resources
+                version = pkg_resources.get_distribution('modbamtools').version
+            except:
+                version = 'installed'
+    print(f'modbamtools {version}')
+except ImportError:
+    print('modbamtools: not found')
+except Exception as e:
+    print(f'modbamtools: error ({e})')
+" 2>/dev/null
+}
