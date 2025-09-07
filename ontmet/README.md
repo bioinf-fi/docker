@@ -171,10 +171,10 @@ chmod 755 workshop-data
 cd workshop-data
 
 # Run container with permission mapping
-docker run -it --rm --user $(id -u):$(id -g) -v "$PWD:/data" bioinf-fi/ontmet:latest
+docker run -it --rm --user $(id -u):$(id -g) -v "$PWD:/data:Z" bioinf-fi/ontmet:latest
 
-# Same with Podman
-podman run -it --rm --user $(id -u):$(id -g) -v "$PWD:/data" bioinf-fi/ontmet:latest
+# With Podman (requires U flag for write permissions)  
+podman run -it --rm --user $(id -u):$(id -g) -v "$PWD:/data:Z,U" bioinf-fi/ontmet:latest
 ```
 
 **Why This Works:**
@@ -223,14 +223,25 @@ docker run -it --rm \
 ```
 
 #### Platform-Specific Notes
+
+**For SELinux systems (Fedora/RHEL/CentOS) - IMPORTANT for Linux workshops:**
+
+If you get "Permission denied" errors on Linux systems with SELinux enabled:
+
 ```bash
-# SELinux systems (Fedora/RHEL/CentOS) with Podman
-podman run -it --rm \
-  -v "$PWD:/data:Z" \
-  bioinf-fi/ontmet:latest \
-  minimap2 --version
+# Docker on SELinux systems
+docker run -it --rm --user $(id -u):$(id -g) -v "$PWD:/data:Z" bioinf-fi/ontmet:latest
+
+# Podman on SELinux systems (requires additional U flag for write permissions)
+podman run -it --rm --user $(id -u):$(id -g) -v "$PWD:/data:Z,U" bioinf-fi/ontmet:latest
 ```
-- `:Z` applies SELinux relabeling when needed
+
+**Volume Mount Flags Explained:**
+- `:Z` - SELinux relabeling for container access (required for both Docker & Podman)
+- `,U` - **Podman-specific**: Changes ownership of mounted volume to container user
+- **Docker**: Only needs `:Z` 
+- **Podman**: Needs `:Z,U` for write permissions
+- Not needed on macOS/Windows, but harmless if included
 
 ### Running IGV (GUI Application)
 

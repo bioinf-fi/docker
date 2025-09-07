@@ -56,7 +56,7 @@ run-igv: ## Run interactive container with GUI support (Linux X11)
 	$(ENGINE) run -it --rm \
 		-e DISPLAY=$$DISPLAY \
 		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v "$(DATA_DIR)":/data \
+		-v "$(DATA_DIR)":/data:Z,U \
 		$(IMAGE_NAME):$(TAG)
 
 # Launch IGV directly (convenience target)
@@ -66,14 +66,14 @@ igv: ## Launch IGV GUI directly (Linux X11)
 	$(ENGINE) run -it --rm \
 		-e DISPLAY=$$DISPLAY \
 		-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-		-v "$(DATA_DIR)":/data \
+		-v "$(DATA_DIR)":/data:Z,U \
 		$(IMAGE_NAME):$(TAG) \
 		bash -l -c "igv"
 
 # Run interactive shell (no X11)
 run-shell: ## Run interactive shell with data mounting
 	$(ENGINE) run -it --rm \
-		-v "$(DATA_DIR)":/data \
+		-v "$(DATA_DIR)":/data:Z,U \
 		$(IMAGE_NAME):$(TAG)
 
 clean: ## Remove generated tar archive
