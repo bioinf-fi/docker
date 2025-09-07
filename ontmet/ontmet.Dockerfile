@@ -160,6 +160,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcurl4-openssl-dev libxml2-dev libxslt1-dev libssl-dev \
     zlib1g-dev libbz2-dev liblzma-dev libffi-dev \
     libhdf5-dev libopenblas-dev pkg-config \
+    libhts-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create build venv using Python ${PYTHON_VERSION} (required for modbamtools)
@@ -234,6 +235,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcurl4 libxml2 libssl3 \
     libzstd1 libbz2-1.0 liblzma5 libdeflate0 \
     libncursesw6 \
+    libhts3 \
     fonts-dejavu-core \
     gv \
     default-jre-headless \
