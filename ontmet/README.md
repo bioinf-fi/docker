@@ -172,6 +172,20 @@ docker run -it --rm --user $(id -u):$(id -g) -v "$PWD:/data" bioinf-fi/ontmet:la
 podman run -it --rm --user $(id -u):$(id -g) -v "$PWD:/data" bioinf-fi/ontmet:latest
 ```
 
+### 📊 NanoPlot Static Plot Issues
+
+**If you see Chrome/Kaleido warnings with NanoPlot**, add `--no_static` to disable static plot generation:
+
+```bash
+# Instead of:
+NanoPlot --fastq file.fastq -o output
+
+# Use:
+NanoPlot --fastq file.fastq -o output --no_static
+```
+
+This avoids Chrome dependency issues in containers while still generating interactive HTML plots.
+
 ### Standard Usage
 
 #### Docker/Podman (interchangeable)
