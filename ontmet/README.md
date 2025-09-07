@@ -112,10 +112,10 @@ docker run --rm bioinf-fi/ontmet:latest bash -l -c "tools"
 # Interactive shell with data mounting
 make run-shell DATA_DIR=/path/to/your/data
 
-# Run with GUI support (for IGV)
+# Run with GUI support (Linux X11)
 make run-igv
 
-# Launch IGV directly
+# Launch IGV directly (Linux X11)
 make igv
 ```
 
@@ -161,23 +161,21 @@ podman run -it --rm \
 
 ### Running IGV (GUI Application)
 
-IGV support varies by operating system:
-
-#### Linux Desktop (Recommended)
-IGV works well with X11 forwarding:
+#### Linux (Recommended)
+IGV works seamlessly with X11 forwarding on Linux:
 
 ```bash
 # 1. Enable X11 forwarding
 xhost +local:root
 
-# 2. Run with GUI support
-make run-igv
+# 2. Launch IGV directly
+make igv
 
-# 3. Launch IGV inside container
-igv
+# Or run interactive container with GUI support
+make run-igv
 ```
 
-**Manual method:**
+**Manual Docker command:**
 ```bash
 # Enable X11 forwarding
 xhost +local:root
@@ -189,64 +187,30 @@ docker run -it --rm \
   -v $(pwd):/data \
   bioinf-fi/ontmet:latest
 
-# Launch IGV
+# Launch IGV inside container
 igv
 ```
 
-#### macOS (Alternative Approaches)
+#### macOS/Windows (Alternative)
+For optimal performance on macOS and Windows, use native IGV:
 
-**Option 1: Native IGV (Recommended for macOS)**
-- Download IGV directly for macOS from [igv.org](https://igv.org)
-- Use container for data processing, native IGV for visualization
-- Best performance and user experience
+1. **Download native IGV** from [igv.org](https://igv.org)
+2. **Use container for data processing** (samtools, minimap2, etc.)
+3. **Load results in native IGV** for visualization
 
-**Option 2: XQuartz + Docker (Advanced)**
+This approach provides:
+- ✅ Better performance and user experience
+- ✅ No complex X11/VNC setup required
+- ✅ Native OS integration (file dialogs, etc.)
+
+**Example workflow:**
 ```bash
-# 1. Install XQuartz
-brew install --cask xquartz
+# Process data in container
+make run-shell DATA_DIR=/path/to/data
+# Inside container: run samtools, minimap2, etc.
 
-# 2. Start XQuartz and enable network connections
-# In XQuartz preferences: Security > "Allow connections from network clients"
-
-# 3. Get your IP address
-IP=$(ifconfig en0 | grep inet | awk '$1=="inet" {print $2}')
-
-# 4. Allow X11 connections
-xhost + $IP
-
-# 5. Run container with X11 forwarding
-docker run -it --rm \
-  -e DISPLAY=$IP:0 \
-  -v $(pwd):/data \
-  bioinf-fi/ontmet:latest
-
-# 6. Launch IGV inside container
-igv
-```
-
-**Option 3: VNC Server (Most Compatible)**
-```bash
-# Run container with VNC server
-docker run -it --rm \
-  -p 5901:5901 \
-  -v $(pwd):/data \
-  bioinf-fi/ontmet:latest \
-  bash -c "
-    apt update && apt install -y tightvncserver xfce4 &&
-    vncserver :1 -geometry 1024x768 -depth 24 &&
-    DISPLAY=:1 igv
-  "
-
-# Connect using VNC client to localhost:5901
-```
-
-#### Windows (WSL2 + X11)
-```bash
-# With WSL2 and X11 server (like VcXsrv)
-# 1. Install X11 server for Windows
-# 2. In WSL2:
-export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0
-make run-igv
+# Visualize results in native IGV
+# Open IGV natively and load files from /path/to/data
 ```
 
 ---
