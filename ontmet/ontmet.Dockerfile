@@ -17,7 +17,7 @@ ARG SEQTK_VERSION=1.4
 ARG MODKIT_VERSION=0.5.0
 
 # Python Environment
-ARG PYTHON_VERSION=3.9
+ARG PYTHON_VERSION=3.8
 
 # GUI Tools
 ARG IGV_VERSION=2.18.2
@@ -157,8 +157,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python${PYTHON_VERSION}-dev python3-pip \
     build-essential git \
     cython3 \
-    libcurl4-openssl-dev libxml2-dev libssl-dev \
+    libcurl4-openssl-dev libxml2-dev libxslt1-dev libssl-dev \
     zlib1g-dev libbz2-dev liblzma-dev libffi-dev \
+    libhdf5-dev libopenblas-dev pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # Create build venv using Python ${PYTHON_VERSION} (required for modbamtools)
@@ -177,6 +178,7 @@ RUN . /opt/pwb/bin/activate \
         pybigwig \
         ndindex \
         NanoPlot \
+        modbamtools \
     && ( \
         pip wheel -w /wheelhouse methylartist \
         || pip wheel -w /wheelhouse git+https://github.com/adamewing/methylartist \
@@ -267,26 +269,12 @@ RUN set -eux; \
     pip install --upgrade pip; \
     ls -1 /wheels | sed 's/^/WHEEL: /'; \
     pip install --no-index --find-links=/wheels \
-        cython pysam moddotplot whatshap pybedtools pyBigWig ndindex methylartist NanoPlot; \
+        cython pysam moddotplot whatshap pybedtools pyBigWig ndindex methylartist NanoPlot modbamtools; \
     python /tmp/verify.py
 
 # Clean up wheels and set Python environment
 RUN rm -rf /wheels
 ENV PATH="/opt/venv/bin:${PATH}"
-
-# Install modbamtools with build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    python${PYTHON_VERSION}-dev \
-    libhts-dev \
-    zlib1g-dev \
-    libbz2-dev \
-    liblzma-dev \
-    && . /opt/venv/bin/activate \
-    && pip install --no-cache-dir modbamtools \
-    && apt-get remove -y build-essential python${PYTHON_VERSION}-dev \
-    && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
 ARG USER=worker

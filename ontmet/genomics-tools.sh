@@ -81,7 +81,7 @@ PY
     echo "NanoPlot: not found"
   fi
 
-  # Check for modbamtools (pip-installed package in venv)
+  # Check for modbamtools (pip-installed in main venv)
   /opt/venv/bin/python -c "
 try:
     import modbamtools
