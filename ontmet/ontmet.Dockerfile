@@ -179,7 +179,6 @@ RUN . /opt/pwb/bin/activate \
         pybigwig \
         ndindex \
         NanoPlot \
-        modbamtools \
     && ( \
         pip wheel -w /wheelhouse methylartist \
         || pip wheel -w /wheelhouse git+https://github.com/adamewing/methylartist \
@@ -272,7 +271,9 @@ RUN set -eux; \
     pip install --upgrade pip; \
     ls -1 /wheels | sed 's/^/WHEEL: /'; \
     pip install --no-index --find-links=/wheels \
-        cython pysam moddotplot whatshap pybedtools pyBigWig ndindex methylartist NanoPlot modbamtools; \
+        cython pysam moddotplot whatshap pybedtools pyBigWig ndindex methylartist NanoPlot; \
+    echo "Installing modbamtools with htslib available..."; \
+    CFLAGS="-I/usr/local/include" LDFLAGS="-L/usr/local/lib" pip install modbamtools; \
     python /tmp/verify.py
 
 # Clean up wheels and set Python environment
