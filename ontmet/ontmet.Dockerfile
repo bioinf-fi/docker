@@ -295,4 +295,9 @@ USER ${USER}
 WORKDIR /data
 ENV HOME=/home/${USER}
 
+# Make /data directory writable by any user (workshop-friendly)
+USER root
+RUN chmod 777 /data
+USER ${USER}
+
 CMD ["bash"]
