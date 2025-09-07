@@ -221,7 +221,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-# Install minimal runtime dependencies
+# Install runtime dependencies + build tools for modbamtools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     && add-apt-repository ppa:deadsnakes/ppa \
@@ -229,7 +229,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     locales \
     python${PYTHON_VERSION} python${PYTHON_VERSION}-venv libpython${PYTHON_VERSION} \
-    python${PYTHON_VERSION}-tk \
+    python${PYTHON_VERSION}-tk python${PYTHON_VERSION}-dev \
     r-base \
     libcurl4 libxml2 libssl3 \
     libzstd1 libbz2-1.0 liblzma5 libdeflate0 \
@@ -238,6 +238,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-dejavu-core \
     gv \
     default-jre-headless \
+    build-essential \
     && rm -rf /var/lib/apt/lists/* \
     && locale-gen en_US.UTF-8
 ENV LANG=C.UTF-8
@@ -274,7 +275,11 @@ RUN set -eux; \
         cython pysam moddotplot whatshap pybedtools pyBigWig ndindex methylartist NanoPlot; \
     echo "Installing modbamtools with htslib available..."; \
     CFLAGS="-I/usr/local/include" LDFLAGS="-L/usr/local/lib" pip install modbamtools; \
-    python /tmp/verify.py
+    python /tmp/verify.py; \
+    echo "Cleaning up build dependencies..."; \
+    apt-get remove -y build-essential python${PYTHON_VERSION}-dev; \
+    apt-get autoremove -y; \
+    rm -rf /var/lib/apt/lists/*
 
 # Clean up wheels and set Python environment
 RUN rm -rf /wheels
