@@ -32,6 +32,28 @@ The image is built on **Ubuntu 24.04** and contains:
 
 ---
 
+## 🏗️ Tools Installation Architecture
+
+This container uses a **simplified single-source approach** for maximum reliability and maintainability:
+
+```
+🔧 TOOLS INSTALLATION SOURCES:
+├── Python Tools (pip + Python 3.8 venv)
+│   ├── pysam, moddotplot, whatshap, pybedtools 
+│   ├── pyBigWig, ndindex, methylartist, NanoPlot
+│   └── modbamtools (libmodbampy resolved)
+├── C/C++ Tools (source compilation)  
+│   ├── samtools, bcftools, htslib, minimap2
+│   ├── seqtk, bioawk
+│   └── pomfret (with HTSlib integration)
+├── Rust Tools (source compilation)
+│   └── modkit (cargo build)
+└── Java Tools (pre-built binaries)
+    └── IGV (with Java runtime)
+```
+
+---
+
 ## 🔧 Version Management
 
 All tool versions are configurable via build arguments at the top of the Dockerfile. You can easily customize versions without editing the entire file.
@@ -198,10 +220,6 @@ For optimal performance on macOS and Windows, use native IGV:
 2. **Use container for data processing** (samtools, minimap2, etc.)
 3. **Load results in native IGV** for visualization
 
-This approach provides:
-- ✅ Better performance and user experience
-- ✅ No complex X11/VNC setup required
-- ✅ Native OS integration (file dialogs, etc.)
 
 **Example workflow:**
 ```bash
