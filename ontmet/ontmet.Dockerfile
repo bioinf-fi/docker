@@ -30,6 +30,14 @@ ARG UBUNTU_VERSION=24.04
 # =========
 FROM ubuntu:${UBUNTU_VERSION} AS c_tools_builder
 
+# Import required build arguments for this stage
+ARG UBUNTU_VERSION
+ARG HTSLIB_VERSION
+ARG SAMTOOLS_VERSION
+ARG BCFTOOLS_VERSION
+ARG MINIMAP2_VERSION
+ARG SEQTK_VERSION
+
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -109,6 +117,10 @@ RUN mkdir -p /usr/bin/htslib \
 # =========
 FROM ubuntu:${UBUNTU_VERSION} AS rust_builder
 
+# Import required build arguments for this stage
+ARG UBUNTU_VERSION
+ARG MODKIT_VERSION
+
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl pkg-config libssl-dev zlib1g-dev build-essential git \
@@ -132,6 +144,10 @@ RUN git clone --depth 1 --branch v${MODKIT_VERSION} https://github.com/nanoporet
 # STAGE 3: PYTHON WHEEL BUILDER (Parallel Group C)
 # =========
 FROM ubuntu:${UBUNTU_VERSION} AS python_builder
+
+# Import required build arguments for this stage
+ARG UBUNTU_VERSION
+ARG PYTHON_VERSION
 
 ENV DEBIAN_FRONTEND=noninteractive PIP_NO_CACHE_DIR=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -176,6 +192,10 @@ RUN . /opt/pwb/bin/activate \
 # =========
 FROM ubuntu:${UBUNTU_VERSION} AS binary_downloader
 
+# Import required build arguments for this stage
+ARG UBUNTU_VERSION
+ARG IGV_VERSION
+
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates wget unzip \
@@ -194,6 +214,10 @@ RUN wget -O IGV_Linux_${IGV_VERSION}_WithJava.zip \
 # STAGE 5: RUNTIME ASSEMBLY
 # =========
 FROM ubuntu:${UBUNTU_VERSION}
+
+# Import required build arguments for this stage
+ARG UBUNTU_VERSION
+ARG PYTHON_VERSION
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
