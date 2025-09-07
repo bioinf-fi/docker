@@ -229,6 +229,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     locales \
     python${PYTHON_VERSION} python${PYTHON_VERSION}-venv libpython${PYTHON_VERSION} \
+    python3-tk \
     r-base \
     libcurl4 libxml2 libssl3 \
     libzstd1 libbz2-1.0 liblzma5 libdeflate0 \
