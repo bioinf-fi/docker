@@ -286,19 +286,25 @@ RUN groupadd -g ${GID} ${USER} \
 
 # Configure interactive environment
 ENV PATH="/opt/venv/bin:/usr/local/bin:${PATH}"
+ENV UMASK=000
 COPY genomics-tools.sh /etc/profile.d/genomics-tools.sh
 
 RUN echo '. /etc/profile.d/genomics-tools.sh 2>/dev/null' >> /home/worker/.bashrc \
     && echo '[ -z "$NO_GREETING" ] && [[ $- == *i* ]] && tools || true' >> /home/worker/.bashrc \
+    && echo 'umask 000' >> /home/worker/.bashrc \
+    && echo 'umask 000' >> /etc/profile.d/genomics-tools.sh \
     && chmod -R 755 /home/worker
 
 USER ${USER}
 WORKDIR /data
 ENV HOME=/home/${USER}
 
-# Make /data directory writable by any user (workshop-friendly)
+# Workshop-friendly permissions (not /data since it gets mounted over)
 USER root
-RUN chmod 777 /data
+RUN chmod 777 /opt/venv /tmp \
+    && find /opt/venv -type d -exec chmod 755 {} \; \
+    && find /opt/venv -type f -exec chmod 644 {} \; \
+    && chmod -R 755 /opt/venv/bin
 USER ${USER}
 
 CMD ["bash"]

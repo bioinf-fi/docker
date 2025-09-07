@@ -162,14 +162,32 @@ Your host directory with input/output data should be mounted to `/data`.
 
 ### ⚠️ File Permission Fix for Workshops
 
-**If you get permission errors when writing files**, use `--user $(id -u):$(id -g)` to match your host user:
+This container is designed to be **workshop-friendly** with minimal permission issues. For **bulletproof workshop setup**, use this complete command sequence:
 
 ```bash
-# Quick fix for permission issues (recommended for workshops)
+# Complete workshop setup (one-time per directory)
+mkdir -p workshop-data
+chmod 755 workshop-data
+cd workshop-data
+
+# Run container with permission mapping
 docker run -it --rm --user $(id -u):$(id -g) -v "$PWD:/data" bioinf-fi/ontmet:latest
 
 # Same with Podman
 podman run -it --rm --user $(id -u):$(id -g) -v "$PWD:/data" bioinf-fi/ontmet:latest
+```
+
+**Why This Works:**
+- ✅ **User ID mapping**: `--user $(id -u):$(id -g)` matches host user permissions
+- ✅ **Host directory setup**: `chmod 755` ensures the mounted directory is accessible
+- ✅ **Permissive umask (000)**: All created files inside container are world-writable
+- ✅ **No build required**: Works with pre-built images from any source
+
+**Alternative for Existing Directory:**
+If you already have data in a directory and see permission errors:
+```bash
+chmod 755 .  # Make current directory accessible
+docker run -it --rm --user $(id -u):$(id -g) -v "$PWD:/data" bioinf-fi/ontmet:latest
 ```
 
 ### 📊 NanoPlot Static Plot Issues
