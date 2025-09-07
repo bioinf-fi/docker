@@ -181,10 +181,6 @@ RUN . /opt/pwb/bin/activate \
         pip wheel -w /wheelhouse methylartist \
         || pip wheel -w /wheelhouse git+https://github.com/adamewing/methylartist \
     ) \
-    && ( \
-        pip wheel -w /wheelhouse modbamtools \
-        || echo "modbamtools not available via pip, will need manual installation" \
-    ) \
     && python3 /tmp/check_wheels.py
 
 # =========
@@ -272,12 +268,25 @@ RUN set -eux; \
     ls -1 /wheels | sed 's/^/WHEEL: /'; \
     pip install --no-index --find-links=/wheels \
         cython pysam moddotplot whatshap pybedtools pyBigWig ndindex methylartist NanoPlot; \
-    pip install --no-index --find-links=/wheels modbamtools || pip install modbamtools; \
     python /tmp/verify.py
 
 # Clean up wheels and set Python environment
 RUN rm -rf /wheels
 ENV PATH="/opt/venv/bin:${PATH}"
+
+# Install modbamtools with build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    python${PYTHON_VERSION}-dev \
+    libhts-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    liblzma-dev \
+    && . /opt/venv/bin/activate \
+    && pip install --no-cache-dir modbamtools \
+    && apt-get remove -y build-essential python${PYTHON_VERSION}-dev \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
 ARG USER=worker
