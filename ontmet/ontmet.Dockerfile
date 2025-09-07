@@ -157,10 +157,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python${PYTHON_VERSION}-dev python3-pip \
     build-essential git \
     cython3 \
-    libcurl4-gnutls-dev libxml2-dev libxslt1-dev libssl-dev \
+    libcurl4-openssl-dev libxml2-dev libxslt1-dev libssl-dev \
     zlib1g-dev libbz2-dev liblzma-dev libffi-dev \
     libhdf5-dev libopenblas-dev pkg-config \
-    libhts-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create build venv using Python ${PYTHON_VERSION} (required for modbamtools)
@@ -179,6 +178,7 @@ RUN . /opt/pwb/bin/activate \
         pybigwig \
         ndindex \
         NanoPlot \
+        modbamtools \
     && ( \
         pip wheel -w /wheelhouse methylartist \
         || pip wheel -w /wheelhouse git+https://github.com/adamewing/methylartist \
@@ -221,7 +221,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-# Install runtime dependencies + build tools for modbamtools
+# Install minimal runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     && add-apt-repository ppa:deadsnakes/ppa \
@@ -229,16 +229,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     locales \
     python${PYTHON_VERSION} python${PYTHON_VERSION}-venv libpython${PYTHON_VERSION} \
-    python${PYTHON_VERSION}-tk python${PYTHON_VERSION}-dev \
+    python${PYTHON_VERSION}-tk \
     r-base \
     libcurl4 libxml2 libssl3 \
     libzstd1 libbz2-1.0 liblzma5 libdeflate0 \
     libncursesw6 \
-    libhts3t64 \
     fonts-dejavu-core \
     gv \
     default-jre-headless \
-    build-essential \
     && rm -rf /var/lib/apt/lists/* \
     && locale-gen en_US.UTF-8
 ENV LANG=C.UTF-8
@@ -272,14 +270,8 @@ RUN set -eux; \
     pip install --upgrade pip; \
     ls -1 /wheels | sed 's/^/WHEEL: /'; \
     pip install --no-index --find-links=/wheels \
-        cython pysam moddotplot whatshap pybedtools pyBigWig ndindex methylartist NanoPlot; \
-    echo "Installing modbamtools with htslib available..."; \
-    CFLAGS="-I/usr/local/include" LDFLAGS="-L/usr/local/lib" pip install modbamtools; \
-    python /tmp/verify.py; \
-    echo "Cleaning up build dependencies..."; \
-    apt-get remove -y build-essential python${PYTHON_VERSION}-dev; \
-    apt-get autoremove -y; \
-    rm -rf /var/lib/apt/lists/*
+        cython pysam moddotplot whatshap pybedtools pyBigWig ndindex methylartist NanoPlot modbamtools; \
+    python /tmp/verify.py
 
 # Clean up wheels and set Python environment
 RUN rm -rf /wheels
