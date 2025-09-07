@@ -105,14 +105,6 @@ docker build --build-arg IGV_VERSION=2.19.0 -t genomics-tools:igv-latest .
 make build ARGS='--build-arg MINIMAP2_VERSION=2.31'
 ```
 
-### Available Versions
-
-Check each tool's GitHub releases or documentation:
-- [samtools releases](https://github.com/samtools/samtools/releases)
-- [minimap2 releases](https://github.com/lh3/minimap2/releases)  
-- [modkit releases](https://github.com/nanoporetech/modkit/releases)
-- [IGV downloads](https://software.broadinstitute.org/software/igv/download)
-
 ---
 
 ## Quick Start
@@ -168,27 +160,34 @@ make tools
 The container creates a non-root user `worker` (UID/GID 2000).  
 Your host directory with input/output data should be mounted to `/data`.
 
+### ⚠️ File Permission Fix for Workshops
+
+**If you get permission errors when writing files**, use `--user $(id -u):$(id -g)` to match your host user:
+
+```bash
+# Quick fix for permission issues (recommended for workshops)
+docker run -it --rm --user $(id -u):$(id -g) -v "$PWD:/data" bioinf-fi/ontmet:latest
+
+# Same with Podman
+podman run -it --rm --user $(id -u):$(id -g) -v "$PWD:/data" bioinf-fi/ontmet:latest
+```
+
 ### Standard Usage
 
 #### Docker/Podman (interchangeable)
 ```bash
 # Mount current directory into /data
 docker run -it --rm \
-  -v "$PWD:/data" \
-  bioinf-fi/ontmet:latest \
-  samtools --version
-
-# Same command with Podman
-podman run -it --rm \
+  --user $(id -u):$(id -g) \
   -v "$PWD:/data" \
   bioinf-fi/ontmet:latest \
   samtools --version
 
 # Interactive work
 docker run -it --rm \
+  --user $(id -u):$(id -g) \
   -v "$PWD:/data" \
-  bioinf-fi/ontmet:latest \
-  bash
+  bioinf-fi/ontmet:latest
 ```
 
 #### Platform-Specific Notes

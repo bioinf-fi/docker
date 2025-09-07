@@ -288,7 +288,8 @@ ENV PATH="/opt/venv/bin:/usr/local/bin:${PATH}"
 COPY genomics-tools.sh /etc/profile.d/genomics-tools.sh
 
 RUN echo '. /etc/profile.d/genomics-tools.sh 2>/dev/null' >> /home/worker/.bashrc \
-    && echo '[ -z "$NO_GREETING" ] && [[ $- == *i* ]] && tools || true' >> /home/worker/.bashrc
+    && echo '[ -z "$NO_GREETING" ] && [[ $- == *i* ]] && tools || true' >> /home/worker/.bashrc \
+    && chmod -R 755 /home/worker
 
 USER ${USER}
 WORKDIR /data
