@@ -157,7 +157,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python${PYTHON_VERSION}-dev python3-pip \
     build-essential git \
     cython3 \
-    libcurl4-openssl-dev libxml2-dev libxslt1-dev libssl-dev \
+    libcurl4-gnutls-dev libxml2-dev libxslt1-dev libssl-dev \
     zlib1g-dev libbz2-dev liblzma-dev libffi-dev \
     libhdf5-dev libopenblas-dev pkg-config \
     libhts-dev \
@@ -235,7 +235,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcurl4 libxml2 libssl3 \
     libzstd1 libbz2-1.0 liblzma5 libdeflate0 \
     libncursesw6 \
-    libhts3 \
+    libhts3t64 \
     fonts-dejavu-core \
     gv \
     default-jre-headless \
