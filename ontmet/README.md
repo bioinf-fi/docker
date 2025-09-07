@@ -6,8 +6,9 @@ The image is built on **Ubuntu 24.04** and contains:
 
 ## Core Analysis Tools
 - **samtools 1.20** ([docs](http://www.htslib.org/doc/samtools.html))  
+- **bcftools 1.20** ([docs](http://www.htslib.org/doc/bcftools.html))
 - **htslib 1.20** ([docs](http://www.htslib.org/doc/htslib.html))  
-- **minimap2 2.28** ([docs](https://lh3.github.io/minimap2/))  
+- **minimap2 2.30** ([docs](https://lh3.github.io/minimap2/))  
 - **seqtk 1.4** ([repo](https://github.com/lh3/seqtk))  
 - **bioawk** ([repo](https://github.com/lh3/bioawk))  
 - **pomfret v0.1** ([repo](https://github.com/nanoporetech/pomfret))
@@ -28,6 +29,67 @@ The image is built on **Ubuntu 24.04** and contains:
 - **IGV 2.18.2** ([docs](https://software.broadinstitute.org/software/igv/)) - **GUI Supported**
 - **DSS (R/Bioconductor)** ([manual](https://www.bioconductor.org/packages/release/bioc/manuals/DSS/man/DSS.pdf))  
 - **GNU gv** ([man page](https://manpages.debian.org/gv))  
+
+---
+
+## 🔧 Version Management
+
+All tool versions are configurable via build arguments at the top of the Dockerfile. You can easily customize versions without editing the entire file.
+
+### Changing Default Versions
+
+Edit the version configuration section at the top of `ontmet.Dockerfile`:
+
+```dockerfile
+# =============================================
+# VERSION CONFIGURATION - EDIT HERE
+# =============================================
+# Core C/C++ Tools
+ARG HTSLIB_VERSION=1.20      # ← Change this
+ARG SAMTOOLS_VERSION=1.20    # ← Change this
+ARG BCFTOOLS_VERSION=1.20    # ← Change this
+ARG MINIMAP2_VERSION=2.30    # ← Change this
+ARG SEQTK_VERSION=1.4
+
+# Rust Tools  
+ARG MODKIT_VERSION=0.5.0
+
+# Python Environment
+ARG PYTHON_VERSION=3.9
+
+# GUI Tools
+ARG IGV_VERSION=2.18.2
+
+# Base OS
+ARG UBUNTU_VERSION=24.04
+```
+
+### Overriding Versions at Build Time
+
+You can override any version without modifying the Dockerfile:
+
+```bash
+# Build with custom tool versions
+docker build \
+  --build-arg MINIMAP2_VERSION=2.31 \
+  --build-arg SAMTOOLS_VERSION=1.21 \
+  --build-arg PYTHON_VERSION=3.10 \
+  -t genomics-tools:custom .
+
+# Build with latest IGV
+docker build --build-arg IGV_VERSION=2.19.0 -t genomics-tools:igv-latest .
+
+# Using make (add ARGS variable)
+make build ARGS='--build-arg MINIMAP2_VERSION=2.31'
+```
+
+### Available Versions
+
+Check each tool's GitHub releases or documentation:
+- [samtools releases](https://github.com/samtools/samtools/releases)
+- [minimap2 releases](https://github.com/lh3/minimap2/releases)  
+- [modkit releases](https://github.com/nanoporetech/modkit/releases)
+- [IGV downloads](https://software.broadinstitute.org/software/igv/download)
 
 ---
 

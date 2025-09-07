@@ -5,6 +5,9 @@ tools() {
   command -v samtools >/dev/null 2>&1 \
     && samtools --version 2>/dev/null | head -n1 \
     || echo "samtools: not found (or missing libhts)"
+  command -v bcftools >/dev/null 2>&1 \
+    && bcftools --version 2>/dev/null | head -n1 \
+    || echo "bcftools: not found (or missing libhts)"
   # minimap2 (print name + version)
   if command -v minimap2 >/dev/null 2>&1; then
     v="$(minimap2 --version 2>/dev/null || true)"

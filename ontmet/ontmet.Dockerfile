@@ -3,10 +3,32 @@
 # =========================================
 # This version uses parallel stages to maximize build speed
 
+# =============================================
+# VERSION CONFIGURATION - EDIT HERE
+# =============================================
+# Core C/C++ Tools
+ARG HTSLIB_VERSION=1.20
+ARG SAMTOOLS_VERSION=1.20
+ARG BCFTOOLS_VERSION=1.20
+ARG MINIMAP2_VERSION=2.30
+ARG SEQTK_VERSION=1.4
+
+# Rust Tools  
+ARG MODKIT_VERSION=0.5.0
+
+# Python Environment
+ARG PYTHON_VERSION=3.9
+
+# GUI Tools
+ARG IGV_VERSION=2.18.2
+
+# Base OS
+ARG UBUNTU_VERSION=24.04
+
 # =========
 # STAGE 1: C/C++ TOOLS BUILDER (Parallel Group A)
 # =========
-FROM ubuntu:24.04 AS c_tools_builder
+FROM ubuntu:${UBUNTU_VERSION} AS c_tools_builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -27,22 +49,26 @@ ENV PATH="/opt/build/bin:${PATH}"
 RUN mkdir -p /opt/build/bin
 
 # --- HTSlib (foundation for samtools) ---
-ARG HTSLIB_VERSION=1.20
 RUN curl -fsSL -o htslib-${HTSLIB_VERSION}.tar.bz2 https://github.com/samtools/htslib/releases/download/${HTSLIB_VERSION}/htslib-${HTSLIB_VERSION}.tar.bz2 \
     && tar -xjf htslib-${HTSLIB_VERSION}.tar.bz2 \
     && cd htslib-${HTSLIB_VERSION} && autoheader && autoconf || true \
     && ./configure --prefix=/opt/build && make -j"$(nproc)" && make install
 
 # --- samtools (depends on HTSlib) ---
-ARG SAMTOOLS_VERSION=1.20
 RUN curl -fsSL -o samtools-${SAMTOOLS_VERSION}.tar.bz2 https://github.com/samtools/samtools/releases/download/${SAMTOOLS_VERSION}/samtools-${SAMTOOLS_VERSION}.tar.bz2 \
     && tar -xjf samtools-${SAMTOOLS_VERSION}.tar.bz2 \
     && cd samtools-${SAMTOOLS_VERSION} \
     && ./configure --with-htslib=/opt/build --prefix=/opt/build \
     && make -j"$(nproc)" && make install
 
+# --- bcftools (depends on HTSlib) ---
+RUN curl -fsSL -o bcftools-${BCFTOOLS_VERSION}.tar.bz2 https://github.com/samtools/bcftools/releases/download/${BCFTOOLS_VERSION}/bcftools-${BCFTOOLS_VERSION}.tar.bz2 \
+    && tar -xjf bcftools-${BCFTOOLS_VERSION}.tar.bz2 \
+    && cd bcftools-${BCFTOOLS_VERSION} \
+    && ./configure --with-htslib=/opt/build --prefix=/opt/build \
+    && make -j"$(nproc)" && make install
+
 # --- minimap2 (independent) ---
-ARG MINIMAP2_VERSION=2.28
 RUN curl -fsSL -o minimap2-${MINIMAP2_VERSION}.tar.bz2 https://github.com/lh3/minimap2/releases/download/v${MINIMAP2_VERSION}/minimap2-${MINIMAP2_VERSION}.tar.bz2 \
     && tar --no-same-owner -xjf minimap2-${MINIMAP2_VERSION}.tar.bz2 \
     && cd minimap2-${MINIMAP2_VERSION} \
@@ -55,7 +81,6 @@ RUN curl -fsSL -o minimap2-${MINIMAP2_VERSION}.tar.bz2 https://github.com/lh3/mi
     && install -m 0755 minimap2 /opt/build/bin/minimap2
 
 # --- seqtk (independent) ---
-ARG SEQTK_VERSION=1.4
 RUN git clone --branch v${SEQTK_VERSION} --depth 1 https://github.com/lh3/seqtk.git \
     && cd seqtk && make -j"$(nproc)" \
     && install -m 0755 seqtk /opt/build/bin/seqtk
@@ -82,7 +107,7 @@ RUN mkdir -p /usr/bin/htslib \
 # =========
 # STAGE 2: RUST BUILDER (Parallel Group B)
 # =========
-FROM ubuntu:24.04 AS rust_builder
+FROM ubuntu:${UBUNTU_VERSION} AS rust_builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -97,8 +122,8 @@ WORKDIR /opt/build
 RUN mkdir -p /opt/build/bin
 
 # --- modkit (Rust tool) ---
-ARG MODKIT_TAG=v0.5.0
-RUN git clone --depth 1 --branch ${MODKIT_TAG} https://github.com/nanoporetech/modkit.git \
+# Use modkit version from top-level configuration
+RUN git clone --depth 1 --branch v${MODKIT_VERSION} https://github.com/nanoporetech/modkit.git \
     && cd modkit \
     && cargo install --path modkit --root /opt/build \
     && /opt/build/bin/modkit --version
@@ -106,22 +131,22 @@ RUN git clone --depth 1 --branch ${MODKIT_TAG} https://github.com/nanoporetech/m
 # =========
 # STAGE 3: PYTHON WHEEL BUILDER (Parallel Group C)
 # =========
-FROM ubuntu:24.04 AS python_builder
+FROM ubuntu:${UBUNTU_VERSION} AS python_builder
 
 ENV DEBIAN_FRONTEND=noninteractive PIP_NO_CACHE_DIR=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     && add-apt-repository ppa:deadsnakes/ppa \
     && apt-get update && apt-get install -y --no-install-recommends \
-    python3.9 python3.9-venv python3.9-dev python3-pip \
+    python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python${PYTHON_VERSION}-dev python3-pip \
     build-essential git \
     cython3 \
     libcurl4-openssl-dev libxml2-dev libssl-dev \
     zlib1g-dev libbz2-dev liblzma-dev libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Create build venv using Python 3.9 (required for modbamtools)
-RUN python3.9 -m venv /opt/pwb && . /opt/pwb/bin/activate \
+# Create build venv using Python ${PYTHON_VERSION} (required for modbamtools)
+RUN python${PYTHON_VERSION} -m venv /opt/pwb && . /opt/pwb/bin/activate \
     && pip install --upgrade pip setuptools wheel
 
 # Build wheels for all Python packages
@@ -149,7 +174,7 @@ RUN . /opt/pwb/bin/activate \
 # =========
 # STAGE 4: BINARY DOWNLOADER (Parallel Group D)
 # =========
-FROM ubuntu:24.04 AS binary_downloader
+FROM ubuntu:${UBUNTU_VERSION} AS binary_downloader
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -159,7 +184,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /opt/downloads
 
 # --- IGV Download ---
-ARG IGV_VERSION=2.18.2
+# Use IGV version from top-level configuration
 RUN wget -O IGV_Linux_${IGV_VERSION}_WithJava.zip \
     "https://data.broadinstitute.org/igv/projects/downloads/2.18/IGV_Linux_${IGV_VERSION}_WithJava.zip" \
     && unzip IGV_Linux_${IGV_VERSION}_WithJava.zip \
@@ -168,7 +193,7 @@ RUN wget -O IGV_Linux_${IGV_VERSION}_WithJava.zip \
 # =========
 # STAGE 5: RUNTIME ASSEMBLY
 # =========
-FROM ubuntu:24.04
+FROM ubuntu:${UBUNTU_VERSION}
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
@@ -181,7 +206,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     locales \
-    python3.9 python3.9-venv libpython3.9 \
+    python${PYTHON_VERSION} python${PYTHON_VERSION}-venv libpython${PYTHON_VERSION} \
     r-base \
     libcurl4 libxml2 libssl3 \
     libzstd1 libbz2-1.0 liblzma5 libdeflate0 \
@@ -217,7 +242,7 @@ RUN find /opt -name 'igv.sh' -exec ln -sf {} /usr/local/bin/igv \;
 # Create runtime Python environment and install wheels
 COPY verify.py /tmp/verify.py
 RUN set -eux; \
-    python3.9 -m venv /opt/venv; \
+    python${PYTHON_VERSION} -m venv /opt/venv; \
     . /opt/venv/bin/activate; \
     pip install --upgrade pip; \
     ls -1 /wheels | sed 's/^/WHEEL: /'; \
