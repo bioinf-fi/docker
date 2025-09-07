@@ -5,6 +5,7 @@ TAG        := latest
 OUTPUT     := ontmet.tar.gz
 ENGINE     ?= docker
 DATA_DIR   ?= $(PWD)
+ARGS       ?=
 
 .PHONY: all build squash import clean run-igv igv run-shell help tools
 
@@ -18,17 +19,27 @@ help: ## Show this help message
 	@echo "Variables:"
 	@echo "  ENGINE=docker|podman  Container engine (default: docker)"
 	@echo "  DATA_DIR=<path>       Data directory to mount (default: current dir)"
+	@echo "  ARGS=<build-args>     Additional build arguments for version control"
 	@echo ""
-	@echo "Examples:"
-	@echo "  make build                    Build the container"
-	@echo "  make run-shell                Interactive shell"
-	@echo "  make igv                      Launch IGV GUI"
-	@echo "  make run-igv DATA_DIR=/data   Run with custom data dir"
+	@echo "Container Engine Selection:"
+	@echo "  make build ENGINE=docker              Use Docker (default)"
+	@echo "  make build ENGINE=podman              Use Podman instead"
+	@echo ""
+	@echo "Build Examples:"
+	@echo "  make build                            Build with default versions"
+	@echo "  make build ARGS='--build-arg MINIMAP2_VERSION=2.31'"
+	@echo "  make build ARGS='--build-arg PYTHON_VERSION=3.9'"
+	@echo ""
+	@echo "Usage Examples:"
+	@echo "  make run-shell                        Interactive shell"
+	@echo "  make run-shell DATA_DIR=/path/to/data Mount custom data directory"
+	@echo "  make igv                              Launch IGV GUI (Linux X11 only)"
+	@echo "  make tools                            List all available tools"
 
-build: ## Build the genomics container image
-	$(ENGINE) build --load -t $(IMAGE_NAME):$(TAG) -f ontmet.Dockerfile .
+build: ## Build the genomics container image with parallel optimization
+	$(ENGINE) build --load -t $(IMAGE_NAME):$(TAG) -f ontmet.Dockerfile $(ARGS) .
 
-squash: ## Export container to compressed tar archive
+squash: ## Export container to compressed tar archive for distribution
 	echo "Squashing $(ENGINE) image to $(OUTPUT)"
 	@cid=$$($(ENGINE) create $(IMAGE_NAME):$(TAG)); \
 	$(ENGINE) export $$cid | gzip > $(OUTPUT); \
@@ -38,9 +49,9 @@ squash: ## Export container to compressed tar archive
 import: ## Import container from compressed tar archive
 	gunzip -c $(OUTPUT) | $(ENGINE) import - $(IMAGE_NAME):$(TAG)
 
-# Run container with X11 forwarding for GUI applications like IGV
-run-igv: ## Run interactive container with GUI support (for IGV)
-	@echo "Starting container with IGV support..."
+# Run container with X11 forwarding for GUI applications like IGV (Linux)
+run-igv: ## Run interactive container with GUI support (Linux X11)
+	@echo "Starting container with IGV support (Linux X11)..."
 	@echo "Make sure to run 'xhost +local:root' first if you get permission errors"
 	$(ENGINE) run -it --rm \
 		-e DISPLAY=$$DISPLAY \
@@ -49,8 +60,8 @@ run-igv: ## Run interactive container with GUI support (for IGV)
 		$(IMAGE_NAME):$(TAG)
 
 # Launch IGV directly (convenience target)
-igv: ## Launch IGV GUI directly
-	@echo "Launching IGV in container..."
+igv: ## Launch IGV GUI directly (Linux X11)
+	@echo "Launching IGV in container (Linux X11)..."
 	@echo "Make sure X11 forwarding is enabled: xhost +local:root"
 	$(ENGINE) run -it --rm \
 		-e DISPLAY=$$DISPLAY \
@@ -70,23 +81,3 @@ clean: ## Remove generated tar archive
 
 tools: ## Show all available tools in the container
 	$(ENGINE) run --rm $(IMAGE_NAME):$(TAG) bash -l -c "tools"
-
-# macOS-specific targets
-run-igv-macos: ## Run container with XQuartz support for macOS
-	@echo "Starting container with macOS XQuartz support..."
-	@echo "Make sure XQuartz is running and network connections are enabled"
-	@IP=$$(ifconfig en0 | grep inet | awk '$$1=="inet" {print $$2}') && \
-	echo "Using IP: $$IP" && \
-	$(ENGINE) run -it --rm \
-		-e DISPLAY=$$IP:0 \
-		-v "$(DATA_DIR)":/data \
-		$(IMAGE_NAME):$(TAG)
-
-igv-vnc: ## Launch IGV via VNC server (cross-platform)
-	@echo "Starting IGV with VNC server..."
-	@echo "Connect to localhost:5901 with VNC client after startup"
-	$(ENGINE) run -it --rm \
-		-p 5901:5901 \
-		-v "$(DATA_DIR)":/data \
-		$(IMAGE_NAME):$(TAG) \
-		bash -c "apt update && apt install -y tightvncserver xfce4 && vncserver :1 -geometry 1024x768 -depth 24 && echo 'VNC server started. Connect to localhost:5901' && DISPLAY=:1 igv"

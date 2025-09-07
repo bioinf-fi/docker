@@ -117,6 +117,23 @@ Check each tool's GitHub releases or documentation:
 
 ## Quick Start
 
+### Container Engine Selection
+
+This container works with both **Docker** and **Podman**. Use the `ENGINE` variable to choose:
+
+```bash
+# Using Docker (default)
+make build
+make run-shell
+
+# Using Podman
+make build ENGINE=podman
+make run-shell ENGINE=podman
+
+# Set as default for session
+export ENGINE=podman  # All subsequent make commands will use Podman
+```
+
 ### Build & Run
 ```bash
 # Build the container
@@ -126,7 +143,7 @@ make build
 make run-shell
 
 # Check all installed tools
-docker run --rm bioinf-fi/ontmet:latest bash -l -c "tools"
+make tools
 ```
 
 ### Using Makefile (Recommended)
@@ -139,6 +156,9 @@ make run-igv
 
 # Launch IGV directly (Linux X11)
 make igv
+
+# List all available tools and versions
+make tools
 ```
 
 ---
@@ -150,10 +170,16 @@ Your host directory with input/output data should be mounted to `/data`.
 
 ### Standard Usage
 
-#### Docker
+#### Docker/Podman (interchangeable)
 ```bash
 # Mount current directory into /data
 docker run -it --rm \
+  -v "$PWD:/data" \
+  bioinf-fi/ontmet:latest \
+  samtools --version
+
+# Same command with Podman
+podman run -it --rm \
   -v "$PWD:/data" \
   bioinf-fi/ontmet:latest \
   samtools --version
@@ -165,21 +191,15 @@ docker run -it --rm \
   bash
 ```
 
-#### Podman
+#### Platform-Specific Notes
 ```bash
-# Mount current directory into /data  
+# SELinux systems (Fedora/RHEL/CentOS) with Podman
 podman run -it --rm \
   -v "$PWD:/data:Z" \
   bioinf-fi/ontmet:latest \
   minimap2 --version
-
-# Interactive work
-podman run -it --rm \
-  -v "$PWD:/data:Z" \
-  bioinf-fi/ontmet:latest \
-  bash
 ```
-- `:Z` applies SELinux relabeling (needed on Fedora/RHEL/CentOS)
+- `:Z` applies SELinux relabeling when needed
 
 ### Running IGV (GUI Application)
 
