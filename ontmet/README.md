@@ -174,7 +174,7 @@ cd workshop-data
 docker run -it --rm --user $(id -u):$(id -g) -v "$PWD:/data:Z" bioinf-fi/ontmet:latest
 
 # With Podman (requires U flag for write permissions)  
-podman run -it --rm --user $(id -u):$(id -g) -v "$PWD:/data:Z,U" bioinf-fi/ontmet:latest
+podman run -it --rm --userns=keep-id:uid=2000,gid=2000 -v "$PWD:/data:Z,U" bioinf-fi/ontmet:latest
 ```
 
 **Why This Works:**
@@ -233,7 +233,7 @@ If you get "Permission denied" errors on Linux systems with SELinux enabled:
 docker run -it --rm --user $(id -u):$(id -g) -v "$PWD:/data:Z" bioinf-fi/ontmet:latest
 
 # Podman on SELinux systems (requires additional U flag for write permissions)
-podman run -it --rm --user $(id -u):$(id -g) -v "$PWD:/data:Z,U" bioinf-fi/ontmet:latest
+podman run -it --rm --userns=keep-id:uid=2000,gid=2000 -v "$PWD:/data:Z,U" bioinf-fi/ontmet:latest
 ```
 
 **Volume Mount Flags Explained:**
