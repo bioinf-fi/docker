@@ -4,7 +4,7 @@
 # =========================================
 # Stage 1: Install all bioconda tools
 # =========================================
-FROM condaforge/mambaforge:latest AS builder
+FROM docker.io/condaforge/mambaforge:latest AS builder
 
 WORKDIR /tmp/build
 
@@ -31,17 +31,20 @@ RUN mamba create -n assembly -y -c conda-forge -c bioconda -c defaults \
     samtools \
     mashmap \
     minimap2 \
+    igv \
+    bandage \
     && mamba clean -afy
 
 # =========================================
 # Stage 2: Runtime environment (final image)
 # =========================================
-FROM ubuntu:24.04
+FROM docker.io/ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install runtime dependencies
 # perl, bash, bc - needed by verkko
+# X11 libraries - needed for GUI applications (IGV, Bandage)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     libgomp1 \
@@ -51,6 +54,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \
     python3 \
     bc \
+    libxrender1 \
+    libxtst6 \
+    libxi6 \
+    libxrandr2 \
+    libxcursor1 \
+    libxdamage1 \
+    libxcomposite1 \
+    libxfixes3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy conda environment from builder
@@ -87,7 +98,9 @@ RUN echo "=== Installed tools ===" && \
     echo "  - bioawk: AWK with biological data extensions" && \
     echo "  - samtools: Tools for manipulating SAM/BAM/CRAM files" && \
     echo "  - mashmap: Fast approximate aligner for long sequences" && \
-    echo "  - minimap2: Versatile sequence alignment program"
+    echo "  - minimap2: Versatile sequence alignment program" && \
+    echo "  - igv: Integrative Genomics Viewer (GUI)" && \
+    echo "  - bandage: Assembly graph visualization tool (GUI)"
 
 # Default command (interactive shell)
 CMD ["/bin/bash"]

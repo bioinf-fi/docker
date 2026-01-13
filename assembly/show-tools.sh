@@ -25,6 +25,12 @@ check_tool "bioawk:" "bioawk --version 2>&1 | head -n 1 | awk '{print \$3}'"
 check_tool "quast:" "quast --version 2>&1 | grep -i quast | sed 's/QUAST //'"
 check_tool "nanoplot:" "python -c 'import importlib.metadata; print(importlib.metadata.version(\"NanoPlot\"))' 2>/dev/null || echo 'installed'"
 
+echo ""
+echo "GUI Tools (use 'make gui' to run):"
+echo "------------------------------------------"
+check_tool "IGV:" "igv --version 2>&1 | head -n 1 || echo 'installed'"
+check_tool "Bandage:" "Bandage --version 2>&1 | grep -i version | head -n 1 || echo 'installed'"
+
 echo "=========================================="
 echo "Working directory: /data"
 echo "=========================================="

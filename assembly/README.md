@@ -1,169 +1,198 @@
-# Genome Assembly Docker Image
+# Genome Assembly Container
 
-Docker image for interactive bioinformatics class focused on genome assembly using long reads.
+Container image for genome assembly with long reads. Works with Docker or Podman.
 
-## Included Tools
+## Tools Included
 
-### Core Assembly Tools
-- **verkko** - Telomere-to-telomere assembly pipeline for accurate long-read assembly
-- **hifiasm** - Fast haplotype-resolved de novo assembler for PacBio HiFi reads
-- **minimap2** - Versatile pairwise aligner for genomic sequences
+**Assembly:** verkko, hifiasm, minimap2, mashmap  
+**Quality:** nanoplot, quast  
+**Processing:** seqtk, bioawk, samtools  
+**Visualization:** IGV, Bandage (GUI)
 
-### Quality Control & Assessment
-- **nanoplot** - Visualization and quality control for long-read sequencing data
-- **quast** - Quality assessment tool for genome assemblies
-
-### Sequence Processing
-- **seqtk** - Fast toolkit for processing sequences in FASTA/FASTQ formats
-- **bioawk** - AWK with biological data format extensions
-- **samtools** - Tools for manipulating sequence alignment/map formats
-
-### Alignment & Mapping
-- **mashmap** - Fast approximate aligner for long DNA sequences
-
-## Building the Image
+## Quick Start
 
 ```bash
-# Build from the assembly directory
-docker build -f assembly.Dockerfile -t genome-assembly:latest .
+# Build
+make build
 
-# Or build from the repository root
-docker build -f assembly/assembly.Dockerfile -t genome-assembly:latest .
+# Run command-line tools
+make run
 
-# Using Make (recommended)
+# Run with GUI support (for IGV/Bandage)
+make gui
+```
+
+## Setup
+
+### Prerequisites
+- Linux desktop with X11
+- Docker or Podman installed
+
+### First Time
+```bash
+cd assembly
 make build
 ```
 
-### Version Information
+This takes a few minutes. You only do it once.
 
-Tools are installed from bioconda without version constraints, ensuring you get the latest available versions at build time. The image automatically updates the conda package index before installation.
+## Usage
 
-To rebuild with the latest versions, simply rebuild the image:
+### Command-Line Tools
+
 ```bash
-make build
+make run
 ```
 
-## Running the Container
-
-### Interactive Shell (Recommended for Class)
+Inside the container:
 ```bash
-# Run with current directory mounted
-# Tool versions are displayed automatically on startup
-docker run -it --rm -v $(pwd):/data genome-assembly:latest
-
-# Run with specific data directory
-docker run -it --rm -v /path/to/data:/data genome-assembly:latest
-
-# Inside the container, you can run 'show-tools' anytime to see available tools
-```
-
-### Running Specific Commands
-```bash
-# Check tool versions
-docker run --rm genome-assembly:latest hifiasm --version
-
-# Run assembly workflow
-docker run --rm -v $(pwd):/data genome-assembly:latest \
-    hifiasm -o output -t 8 reads.fastq.gz
-```
-
-## Usage Examples
-
-### Quality Control with NanoPlot
-```bash
-docker run -it --rm -v $(pwd):/data genome-assembly:latest
-# Inside container:
+# Quality control
 NanoPlot --fastq reads.fastq.gz -o qc_output
+
+# Assembly
+hifiasm -o assembly -t 8 reads.fastq.gz
+
+# Quality assessment
+quast assembly.fasta -o results
+
+# View installed tools
+show-tools
 ```
 
-### Assembly with Hifiasm
-```bash
-# HiFi reads assembly
-hifiasm -o assembly.asm -t 8 hifi_reads.fastq.gz
-
-# Extract primary assembly
-awk '/^S/{print ">"$2;print $3}' assembly.asm.bp.p_ctg.gfa > assembly.fasta
-```
-
-### Assembly with Verkko
-```bash
-# Hybrid assembly (HiFi + ONT)
-verkko -d output_dir \
-    --hifi hifi_reads.fastq.gz \
-    --nano ont_reads.fastq.gz
-```
-
-### Quality Assessment with QUAST
-```bash
-# Evaluate assembly
-quast assembly.fasta -o quast_results
-
-# Compare multiple assemblies
-quast assembly1.fasta assembly2.fasta -o comparison
-```
-
-### Sequence Processing with seqtk
-```bash
-# Sample 10% of reads
-seqtk sample reads.fastq.gz 0.1 > subset.fastq
-
-# Convert FASTQ to FASTA
-seqtk seq -a reads.fastq.gz > reads.fasta
-
-# Get sequence statistics
-seqtk comp reads.fasta
-```
-
-### Alignment with Minimap2
-```bash
-# Align long reads to reference
-minimap2 -ax map-hifi reference.fasta reads.fastq.gz | samtools sort -o aligned.bam
-
-# Align assembly to reference
-minimap2 -ax asm5 reference.fasta assembly.fasta > alignment.sam
-```
-
-## Resource Recommendations
-
-- **CPU**: Most tools benefit from multiple cores (use `-t` flag)
-- **Memory**: 
-  - Small genomes (<100 Mb): 8-16 GB
-  - Bacterial genomes: 16-32 GB
-  - Large genomes (>1 Gb): 64-128 GB or more
-- **Storage**: Depends on dataset size, but allow 3-5x the input data size
-
-## Docker Resource Limits
+### GUI Applications
 
 ```bash
-# Run with memory limit
-docker run -it --rm --memory=32g -v $(pwd):/data genome-assembly:latest
-
-# Run with CPU limit
-docker run -it --rm --cpus=8 -v $(pwd):/data genome-assembly:latest
-
-# Combined
-docker run -it --rm --memory=32g --cpus=8 -v $(pwd):/data genome-assembly:latest
+make gui
 ```
 
-## Notes
+Inside the container:
+```bash
+# View assembly graphs
+Bandage
 
-- GUI tools (Bandage, IGV) are not included in this command-line focused image
-- All tools are installed via bioconda/conda for reproducibility
-- **Versions**: Tools are installed without version pinning to ensure the latest available versions from bioconda at build time
-- The image uses a multistage build to minimize final size
-- Data directory `/data` is set as the working directory
-- NanoPlot is a Python tool with heavy dependencies (numpy, pandas, matplotlib) so it may take a few seconds to start
+# View alignments
+igv
+```
+
+Your current directory is mounted at `/data` in the container.
 
 ## Troubleshooting
 
-### Permission Issues
-If you encounter permission issues with mounted volumes:
+### GUI Won't Start
+
+Try relaxed X11 mode:
+```bash
+make gui-simple
+```
+
+Or manually:
+```bash
+xhost +local:
+make gui
+xhost -local:
+```
+
+### Permission Errors
+
+With Docker:
 ```bash
 docker run -it --rm -u $(id -u):$(id -g) -v $(pwd):/data genome-assembly:latest
 ```
 
-### Check Installed Versions
+With Podman, this is automatic.
+
+### Check Your Setup
+
 ```bash
-docker run --rm genome-assembly:latest bash -c \
-    "hifiasm --version && verkko --version && samtools --version"
+make test-x11    # Test X11 for GUI
+make test        # Test tools installed
+make help        # See all commands
 ```
+
+## Examples
+
+```bash
+# Assembly with hifiasm
+hifiasm -o asm -t 8 hifi_reads.fastq.gz
+awk '/^S/{print ">"$2;print $3}' asm.bp.p_ctg.gfa > assembly.fasta
+
+# Hybrid assembly with verkko
+verkko -d output --hifi hifi.fastq.gz --nano ont.fastq.gz
+
+# Align reads
+minimap2 -ax map-hifi ref.fasta reads.fastq.gz | samtools sort -o aligned.bam
+
+# View graph
+Bandage load asm.bp.p_ctg.gfa
+```
+
+## Technical Notes
+
+- Auto-detects Docker or Podman
+- SELinux-compatible (Fedora/RHEL)
+- X11 forwarding for GUI apps
+- Volume mounts at `/data`
+- Tools from bioconda (latest versions)
+
+## Make Commands
+
+```bash
+make build       # Build image
+make run         # Start container (CLI)
+make gui         # Start container (GUI)
+make gui-simple  # Start with relaxed X11
+make test-x11    # Test X11 setup
+make test        # Test tool installation
+make clean       # Remove image
+make help        # Show all commands
+```
+
+## Docker vs Podman
+
+Both work. The Makefile detects which you have. Run `make help` to see.
+
+**Podman users on Fedora/RHEL:** Everything is automatic. SELinux is handled.
+
+## Resource Limits
+
+```bash
+# Docker
+docker run -it --rm --memory=32g --cpus=8 -v $(pwd):/data genome-assembly:latest
+
+# Podman
+podman run -it --rm --memory=32g --cpus=8 -v $(pwd):/data:Z genome-assembly:latest
+```
+
+## File Organization
+
+All your data files go in the directory where you run `make gui` or `make run`. They appear at `/data` inside the container.
+
+## Common Issues
+
+**"Cannot open display"**  
+Use `make gui-simple`
+
+**"Permission denied" on files**  
+Podman handles this automatically. Docker users add `-u $(id -u):$(id -g)`
+
+**Wayland instead of X11**  
+```bash
+export DISPLAY=:0
+xhost +local:
+make gui
+```
+
+**Check which runtime you're using**  
+```bash
+make help  # First line shows docker or podman
+```
+
+## Support
+
+- Tool versions: `show-tools` (inside container)
+- IGV docs: https://software.broadinstitute.org/software/igv/
+- Bandage help: `Bandage --help`
+
+---
+
+Built with bioconda. Multi-stage build for minimal size. Compatible with Docker and Podman.
