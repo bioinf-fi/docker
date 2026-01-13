@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for Genome Assembly Bioinformatics Class
+# Multi-stage Dockerfile for Genome Assembly
 # Focus: Long-read genome assembly tools
 
 # =========================================
@@ -14,8 +14,13 @@ RUN conda config --add channels defaults && \
     conda config --add channels conda-forge && \
     conda config --set channel_priority strict
 
+# Update conda to ensure latest package metadata
+RUN mamba update -n base -y mamba conda && \
+    mamba clean -afy
+
 # Install bioinformatics tools available in bioconda
 # Following verkko's official installation instructions
+# No version pinning to ensure latest available versions
 RUN mamba create -n assembly -y -c conda-forge -c bioconda -c defaults \
     verkko \
     hifiasm \
@@ -68,7 +73,7 @@ RUN echo '[ -z "$TOOLS_SHOWN" ] && [[ $- == *i* ]] && export TOOLS_SHOWN=1 && sh
 WORKDIR /data
 
 # Add labels for metadata
-LABEL maintainer="Bioinformatics Class" \
+LABEL maintainer="bionf-fi" \
       description="Docker image for genome assembly using long reads" \
       version="1.0"
 

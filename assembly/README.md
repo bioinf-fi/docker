@@ -29,6 +29,18 @@ docker build -f assembly.Dockerfile -t genome-assembly:latest .
 
 # Or build from the repository root
 docker build -f assembly/assembly.Dockerfile -t genome-assembly:latest .
+
+# Using Make (recommended)
+make build
+```
+
+### Version Information
+
+Tools are installed from bioconda without version constraints, ensuring you get the latest available versions at build time. The image automatically updates the conda package index before installation.
+
+To rebuild with the latest versions, simply rebuild the image:
+```bash
+make build
 ```
 
 ## Running the Container
@@ -137,6 +149,7 @@ docker run -it --rm --memory=32g --cpus=8 -v $(pwd):/data genome-assembly:latest
 
 - GUI tools (Bandage, IGV) are not included in this command-line focused image
 - All tools are installed via bioconda/conda for reproducibility
+- **Versions**: Tools are installed without version pinning to ensure the latest available versions from bioconda at build time
 - The image uses a multistage build to minimize final size
 - Data directory `/data` is set as the working directory
 - NanoPlot is a Python tool with heavy dependencies (numpy, pandas, matplotlib) so it may take a few seconds to start
