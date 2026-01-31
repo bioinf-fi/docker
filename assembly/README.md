@@ -5,7 +5,7 @@ Container image for genome assembly with long reads. Works with Docker or Podman
 ## Tools Included
 
 **Assembly:** verkko, hifiasm, minimap2, mashmap  
-**Quality:** nanoplot, quast  
+**Quality:** NanoPlot, quast  
 **Processing:** seqtk, bioawk, samtools  
 **Visualization:** IGV, Bandage (GUI)
 
