@@ -21,7 +21,9 @@ RUN mamba update -n base -y mamba conda && \
 # Install bioinformatics tools available in bioconda
 # Following verkko's official installation instructions
 # verkko pinned to v2.2.1 for reproducibility
+# python pinned to 3.10 for verkko compatibility
 RUN mamba create -n assembly -y -c conda-forge -c bioconda -c defaults \
+    python=3.10 \
     verkko=2.2.1 \
     hifiasm \
     seqtk \
