@@ -45,6 +45,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install runtime dependencies
 # perl, bash, bc - needed by verkko
 # X11 libraries - needed for GUI applications (IGV, Bandage)
+# tree, git, openssh-client - utility tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     libgomp1 \
@@ -54,6 +55,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \
     python3 \
     bc \
+    tree \
+    git \
+    openssh-client \
     libxrender1 \
     libxtst6 \
     libxi6 \
