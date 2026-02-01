@@ -64,6 +64,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxfixes3 \
     && rm -rf /var/lib/apt/lists/*
 
+# Fix: verkko uses bash syntax but may call /bin/sh
+# Ubuntu's /bin/sh is dash which doesn't support [[
+# Point /bin/sh to bash for compatibility
+RUN ln -sf /bin/bash /bin/sh
+
 # Copy conda environment from builder
 COPY --from=builder /opt/conda /opt/conda
 
