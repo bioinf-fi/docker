@@ -17,7 +17,7 @@ $(CONTAINER_RUNTIME) run --rm -it --init \
 	--user $(HOST_UID):$(HOST_GID) \
 	-e HOME=/tmp/workshop-home \
 	-e TERM="$${TERM:-xterm-256color}" \
-	-v "$(DATA_DIR):/data:Z"
+	-v "$(DATA_DIR):/data:Z,U"
 endef
 
 help:
