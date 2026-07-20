@@ -1,0 +1,6 @@
+**
+!Dockerfile
+!scripts/
+!scripts/show-tools
+!scripts/download-sra
+!scripts/download-paper

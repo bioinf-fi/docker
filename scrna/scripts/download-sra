@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+Download one or more SRA runs as the single concatenated FASTQ expected by
+the workshop HISAT2 command.
+
+Usage:
+  download-sra SRR11449097 [SRR11449098 ...]
+
+Optional environment variables:
+  THREADS    conversion threads (default: 6)
+  OUTDIR     FASTQ destination (default: /data/data)
+  SRA_CACHE  downloaded SRA objects (default: /data/sra-cache)
+  TMPDIR     fasterq-dump scratch space (default: /data/tmp)
+
+The command intentionally retains and concatenates the technical reads. The
+listed 10x v2 records contain 85 or 91 bp per spot, depending on the run.
+HISAT2 '-5 34' then reproduces the trimming used in the workshop notes.
+
+Expect large files. fasterq-dump may need substantially more scratch space
+than the final FASTQ.
+EOF
+}
+
+if [[ $# -eq 0 ]]; then
+    usage
+    exit 2
+fi
+
+threads="${THREADS:-6}"
+outdir="${OUTDIR:-/data/data}"
+sra_cache="${SRA_CACHE:-/data/sra-cache}"
+tmpdir="${TMPDIR:-/data/tmp}"
+
+if [[ ! "$threads" =~ ^[1-9][0-9]*$ ]]; then
+    printf 'THREADS must be a positive integer (received: %s)\n' "$threads" >&2
+    exit 2
+fi
+
+for accession in "$@"; do
+    if [[ ! "$accession" =~ ^SRR[0-9]+$ ]]; then
+        printf 'Invalid SRA run accession: %s\n' "$accession" >&2
+        exit 2
+    fi
+done
+
+mkdir -p "$outdir" "$sra_cache" "$tmpdir"
+
+for accession in "$@"; do
+    output_fastq="$outdir/${accession}.fastq"
+    if [[ -e "$output_fastq" ]]; then
+        printf 'Refusing to overwrite existing file: %s\n' "$output_fastq" >&2
+        exit 1
+    fi
+
+    printf '\n[%s] Downloading SRA object\n' "$accession"
+    prefetch "$accession" \
+        --max-size u \
+        --output-directory "$sra_cache" \
+        --progress
+
+    accession_path="$sra_cache/$accession"
+    if [[ ! -e "$accession_path" ]]; then
+        printf 'prefetch did not create the expected path: %s\n' "$accession_path" >&2
+        exit 1
+    fi
+
+    printf '[%s] Checking available output and scratch space\n' "$accession"
+    fasterq-dump "$accession_path" \
+        --concatenate-reads \
+        --include-technical \
+        --size-check only \
+        --outdir "$outdir" \
+        --temp "$tmpdir"
+
+    printf '[%s] Converting to %s\n' "$accession" "$output_fastq"
+    fasterq-dump "$accession_path" \
+        --concatenate-reads \
+        --include-technical \
+        --threads "$threads" \
+        --outdir "$outdir" \
+        --temp "$tmpdir" \
+        --progress
+done
+
+printf '\nDownload and conversion complete.\n'

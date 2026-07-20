@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+set -u
+
+first_line() {
+    sed -n '1p'
+}
+
+printf '%s\n' 'scRNA-seq workshop tools'
+printf '%s\n' '-------------------------'
+printf 'STAR:             %s\n' "$(STAR --version 2>&1 | first_line)"
+printf 'HISAT2:           %s\n' "$(hisat2 --version 2>&1 | first_line)"
+printf 'SAMtools:         %s\n' "$(samtools --version 2>&1 | first_line)"
+printf 'featureCounts:    %s\n' "$(featureCounts -v 2>&1 | first_line)"
+printf 'fasterq-dump:     %s\n' "$(fasterq-dump --version 2>&1 | first_line)"
+printf 'prefetch:         %s\n' "$(prefetch --version 2>&1 | first_line)"
+printf 'xpdf:             %s\n' "$(xpdf -v 2>&1 | first_line)"
+printf '\nWorking directory: %s\n' "$PWD"
+printf '%s\n' 'Mounted workshop files are normally available under /data.'

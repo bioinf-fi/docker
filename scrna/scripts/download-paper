@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+output="${1:-/data/paper.pdf}"
+url='https://bmcbiol.biomedcentral.com/counter/pdf/10.1186/s12915-021-00955-z.pdf'
+
+mkdir -p "$(dirname "$output")"
+if [[ -e "$output" ]]; then
+    printf 'Refusing to overwrite existing file: %s\n' "$output" >&2
+    exit 1
+fi
+
+temporary_output="$(mktemp "$(dirname "$output")/.paper.XXXXXX")"
+trap 'rm -f "$temporary_output"' EXIT INT TERM
+
+curl --fail --location --retry 3 --retry-delay 2 \
+    --output "$temporary_output" \
+    "$url"
+
+if [[ "$(head -c 4 "$temporary_output")" != '%PDF' ]]; then
+    printf 'The download did not return a PDF document.\n' >&2
+    exit 1
+fi
+
+mv "$temporary_output" "$output"
+trap - EXIT INT TERM
+
+printf 'Paper saved to %s\n' "$output"
+printf 'With X11 enabled, open it using: xpdf %q\n' "$output"
