@@ -11,7 +11,7 @@ mkdir -p "$NOTEBOOK_DST"
 # Seed the mounted workshop folder with embedded notebook assets when missing,
 # so edits persist on the host while the image still ships the originals.
 shopt -s nullglob
-for src in "$NOTEBOOK_SRC"/*.{ipynb,tsv}; do
+for src in "$NOTEBOOK_SRC"/*.{ipynb,tsv,txt}; do
     base="$(basename "$src")"
     if [[ ! -e "$NOTEBOOK_DST/$base" ]]; then
         cp -a "$src" "$NOTEBOOK_DST/$base"

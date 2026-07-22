@@ -76,7 +76,8 @@ RUN chmod 0755 \
     && /opt/venv/bin/jupyter kernelspec list | grep -F pydeseq2 \
     && /opt/venv/bin/python -c "import pydeseq2, pandas, numpy, matplotlib, seaborn, scipy, scanpy, decoupler, pertpy" \
     && test -f /opt/workshop/notebooks/pydeseq2_notebook.ipynb \
-    && test -f /opt/workshop/notebooks/metadata.tsv
+    && test -f /opt/workshop/notebooks/metadata.tsv \
+    && test -f /opt/workshop/notebooks/read_counts_all_s1.txt
 
 ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \

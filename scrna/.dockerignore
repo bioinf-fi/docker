@@ -4,6 +4,7 @@
 !notebooks/
 !notebooks/**/*.ipynb
 !notebooks/**/*.tsv
+!notebooks/**/*.txt
 !scripts/
 !scripts/show-tools
 !scripts/download-sra

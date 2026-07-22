@@ -108,6 +108,7 @@ test:
 		python -c 'import pydeseq2, pandas, numpy, matplotlib, seaborn, scipy, scanpy, decoupler, pertpy'; \
 		test -f /opt/workshop/notebooks/pydeseq2_notebook.ipynb; \
 		test -f /opt/workshop/notebooks/metadata.tsv; \
+		test -f /opt/workshop/notebooks/read_counts_all_s1.txt; \
 		show-tools'
 
 test-x11:
