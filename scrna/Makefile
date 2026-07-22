@@ -107,6 +107,7 @@ test:
 		jupyter kernelspec list | grep -F pydeseq2 >/dev/null; \
 		python -c 'import pydeseq2, pandas, numpy, matplotlib, seaborn, scipy, scanpy, decoupler, pertpy'; \
 		test -f /opt/workshop/notebooks/pydeseq2_notebook.ipynb; \
+		test -f /opt/workshop/notebooks/metadata.tsv; \
 		show-tools'
 
 test-x11:

@@ -8,13 +8,13 @@ JUPYTER_PORT="${JUPYTER_PORT:-8888}"
 
 mkdir -p "$NOTEBOOK_DST"
 
-# Seed the mounted workshop folder with embedded notebooks when missing,
+# Seed the mounted workshop folder with embedded notebook assets when missing,
 # so edits persist on the host while the image still ships the originals.
 shopt -s nullglob
-for nb in "$NOTEBOOK_SRC"/*.ipynb; do
-    base="$(basename "$nb")"
+for src in "$NOTEBOOK_SRC"/*.{ipynb,tsv}; do
+    base="$(basename "$src")"
     if [[ ! -e "$NOTEBOOK_DST/$base" ]]; then
-        cp -a "$nb" "$NOTEBOOK_DST/$base"
+        cp -a "$src" "$NOTEBOOK_DST/$base"
     fi
 done
 shopt -u nullglob

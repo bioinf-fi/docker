@@ -50,10 +50,10 @@ make notebook
 ```
 
 Open http://127.0.0.1:8888/lab. Missing notebooks are copied from the image
-into `./notebooks` on the host mount so edits persist. The notebook expects
-count tables at `../hisat2/` relative to that folder (i.e. `./hisat2` on the
-host) and `metadata.tsv` beside the notebook. Override the published port with
-`make notebook NOTEBOOK_PORT=8889`.
+into `./notebooks` on the host mount so edits persist (including the embedded
+`metadata.tsv`). The notebook also expects count tables at `../hisat2/`
+relative to that folder (i.e. `./hisat2` on the host). Override the published
+port with `make notebook NOTEBOOK_PORT=8889`.
 
 ## X11 and the paper
 

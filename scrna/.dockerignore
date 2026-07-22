@@ -3,6 +3,7 @@
 !requirements-notebook.txt
 !notebooks/
 !notebooks/**/*.ipynb
+!notebooks/**/*.tsv
 !scripts/
 !scripts/show-tools
 !scripts/download-sra
