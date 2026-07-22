@@ -15,5 +15,9 @@ printf 'featureCounts:    %s\n' "$(featureCounts -v 2>&1 | first_line)"
 printf 'fasterq-dump:     %s\n' "$(fasterq-dump --version 2>&1 | first_line)"
 printf 'prefetch:         %s\n' "$(prefetch --version 2>&1 | first_line)"
 printf 'xpdf:             %s\n' "$(xpdf -v 2>&1 | first_line)"
+printf 'Jupyter Lab:      %s\n' "$(jupyter lab --version 2>&1 | first_line)"
+printf 'Notebook kernel:  pydeseq2\n'
+printf 'Notebook:         /opt/workshop/notebooks/pydeseq2_notebook.ipynb\n'
 printf '\nWorking directory: %s\n' "$PWD"
 printf '%s\n' 'Mounted workshop files are normally available under /data.'
+printf '%s\n' 'Embedded notebooks live under /opt/workshop/notebooks (seeded to /data/notebooks).'

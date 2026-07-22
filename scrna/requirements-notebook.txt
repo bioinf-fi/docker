@@ -1,0 +1,15 @@
+# Jupyter stack
+jupyterlab>=4.2,<5
+notebook>=7.2,<8
+ipykernel>=6.29
+
+# pydeseq2_notebook.ipynb
+pydeseq2>=0.4
+numpy>=1.26
+pandas>=2.1
+matplotlib>=3.8
+seaborn>=0.13
+scipy>=1.11
+scanpy>=1.10
+decoupler>=1.6
+pertpy>=0.7

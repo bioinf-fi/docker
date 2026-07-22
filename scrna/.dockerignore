@@ -1,6 +1,10 @@
 **
 !Dockerfile
+!requirements-notebook.txt
+!notebooks/
+!notebooks/**/*.ipynb
 !scripts/
 !scripts/show-tools
 !scripts/download-sra
 !scripts/download-paper
+!scripts/start-notebook

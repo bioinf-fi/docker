@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+NOTEBOOK_SRC="${NOTEBOOK_SRC:-/opt/workshop/notebooks}"
+NOTEBOOK_DST="${NOTEBOOK_DST:-/data/notebooks}"
+JUPYTER_PORT="${JUPYTER_PORT:-8888}"
+
+mkdir -p "$NOTEBOOK_DST"
+
+# Seed the mounted workshop folder with embedded notebooks when missing,
+# so edits persist on the host while the image still ships the originals.
+shopt -s nullglob
+for nb in "$NOTEBOOK_SRC"/*.ipynb; do
+    base="$(basename "$nb")"
+    if [[ ! -e "$NOTEBOOK_DST/$base" ]]; then
+        cp -a "$nb" "$NOTEBOOK_DST/$base"
+    fi
+done
+shopt -u nullglob
+
+cd "$NOTEBOOK_DST"
+
+NOTEBOOK_FILE="${NOTEBOOK_FILE:-pydeseq2_notebook.ipynb}"
+
+printf '%s\n' "Starting Jupyter Lab in $NOTEBOOK_DST"
+printf '%s\n' "Open http://127.0.0.1:${JUPYTER_PORT}/lab/tree/${NOTEBOOK_FILE}"
+printf '%s\n' "(token disabled for local workshop use; kernel: pydeseq2)"
+
+exec jupyter lab \
+    --ip=0.0.0.0 \
+    --port="$JUPYTER_PORT" \
+    --no-browser \
+    --ServerApp.root_dir="$NOTEBOOK_DST" \
+    --ServerApp.default_url="/lab/tree/${NOTEBOOK_FILE}" \
+    --ServerApp.token= \
+    --ServerApp.password= \
+    --ServerApp.allow_origin='*' \
+    --ServerApp.disable_check_xsrf=True
